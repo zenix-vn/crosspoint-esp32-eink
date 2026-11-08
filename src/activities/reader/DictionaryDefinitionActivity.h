@@ -32,6 +32,7 @@ class DictionaryDefinitionActivity final : public Activity {
   void onExit() override;
   void loop() override;
   void render(RenderLock&&) override;
+  GrayText grayText() const override { return GrayText::Static; }
 
  private:
   // One wrapped display line: a byte span of `definition`. Wrapping keeps

@@ -10,6 +10,7 @@
 #include <HalStorage.h>
 
 #include <cstdint>
+#include <memory>
 #include <string>
 
 #include "LibraryFormat.h"
@@ -88,6 +89,11 @@ class LibraryIndexFile {
   // Cleaned author spelling before the library-wide spelling vote. Empty is a
   // valid value, so success is independent of `out.empty()`.
   bool readSourceAuthor(const ClixRecord& record, std::string& out);
+  // The book's dc:subject values joined by ", ", clamped at build time. Empty
+  // is a valid value (no subjects, or metadata reading off).
+  bool readSubjects(const ClixRecord& record, std::string& out);
+  // Series name (empty when none) and position in it, -1 when unknown.
+  bool readSeries(const ClixRecord& record, std::string& name, float& index);
 
   // Absolute path of the book, rebuilt from its folder record.
   bool readPath(const ClixRecord& record, std::string& out);
@@ -99,6 +105,9 @@ class LibraryIndexFile {
 
   HalFile file;
   ClixHeader head{};
+  // With PSRAM the whole index is read once at open: the picker tabs read every
+  // record's name blob a byte at a time, which costs seconds as SD seeks.
+  std::unique_ptr<uint8_t[]> image;
   bool opened = false;
   bool readFailed = false;
   ClixValidity lastValidity = ClixValidity::BadMagic;

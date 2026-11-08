@@ -2,6 +2,7 @@
 
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "LibraryText.h"
 
@@ -284,4 +285,15 @@ TEST(LibraryPath, RootDoesNotGainASecondSeparator) {
 
 TEST(LibraryPath, NestedFolderGetsOneSeparator) {
   EXPECT_EQ(library::joinLibraryPath("/Books", "book.epub"), "/Books/book.epub");
+}
+
+TEST(LibrarySubjects, SplitsBisacPathsAndSkipsGenericTerms) {
+  std::vector<std::pair<std::string, std::string>> terms;
+  library::forEachSubjectTerm("FICTION / Fantasy / Epic, Truyện trinh thám; Non-Fiction, SF",
+                              [&](const std::string& folded, const std::string_view shown) {
+                                terms.emplace_back(folded, std::string(shown));
+                              });
+  const std::vector<std::pair<std::string, std::string>> expected = {
+      {"fantasy", "Fantasy"}, {"epic", "Epic"}, {"truyen trinh tham", "Truyện trinh thám"}};
+  EXPECT_EQ(terms, expected);
 }

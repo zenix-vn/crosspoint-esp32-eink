@@ -57,6 +57,7 @@ struct PixelCache {
 
   static constexpr int MIN_BAND_ROWS = 16;
   static constexpr size_t MAX_BAND_BYTES = 24 * 1024;  // band working-set ceiling
+  static constexpr uint16_t VERSION_FLAG = 0x8000;
 
   // Open the cache file, write the header, and allocate a band buffer big enough
   // to hold the tallest single decode block (maxBlockDstRows output rows).
@@ -104,7 +105,7 @@ struct PixelCache {
     }
     cachePathStr = cachePath;
 
-    uint16_t w16 = (uint16_t)w;
+    uint16_t w16 = static_cast<uint16_t>(w) | VERSION_FLAG;
     uint16_t h16 = (uint16_t)h;
     if (file.write(&w16, 2) != 2 || file.write(&h16, 2) != 2) {
       LOG_ERR("IMG", "Failed to write cache header: %s", cachePath.c_str());

@@ -17,6 +17,7 @@ class TtfEpdFont;
 
 #include <array>
 #include <cstring>
+#include <functional>
 #include <map>
 #include <string>
 #include <vector>
@@ -50,6 +51,9 @@ class GfxRenderer {
   HalDisplay& display;
   RenderMode renderMode;
   mutable bool absoluteGrayPlanes = false;
+  // drawUiGrayscale() is repainting a finished frame into a gray plane.
+  mutable bool uiGrayPass_ = false;
+  mutable uint32_t displayCount_ = 0;  // displayBuffer() calls, so callers can tell a frame went out
   bool ditherImagesInBw = false;
   Orientation orientation;
   bool fadingFix;
@@ -430,6 +434,18 @@ class GfxRenderer {
   // Free a stored buffer without restoring it (the page under it changed).
   void discardStoredBwBuffer() { freeBwBufferChunks(); }
   void cleanupGrayscaleWithFrameBuffer() const;
+
+  // UI anti-aliasing. With a B/W frame already on the panel, draw() repaints
+  // it into each gray plane and the gray waveform runs. While draw() runs,
+  // white writes, screen clears and display calls do nothing, and each plane
+  // is then masked to the frame's black pixels: gray lands only on the soft
+  // edges of black text and on gray image pixels, never on anything a later
+  // white fill covered. Returns false, leaving the frame B/W, when the panel
+  // has no separate-base overlay grayscale, the output is inverted, or the
+  // B/W copy cannot be allocated.
+  bool drawUiGrayscale(const std::function<void()>& draw);
+  bool inUiGrayPass() const { return uiGrayPass_; }
+  uint32_t displayCount() const { return displayCount_; }
 
   // Font helpers
   const uint8_t* getGlyphBitmap(const EpdFontData* fontData, const EpdGlyph* glyph) const;

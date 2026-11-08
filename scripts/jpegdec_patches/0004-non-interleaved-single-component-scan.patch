@@ -1,0 +1,13 @@
+diff --git a/src/jpeg.inl b/src/jpeg.inl
+index a60b548..2a412fa 100644
+--- a/src/jpeg.inl
++++ b/src/jpeg.inl
+@@ -1392,6 +1392,8 @@ static int JPEGGetSOS(JPEGIMAGE *pJPEG, int *iOff)
+     
+     uc = buf[iOffset++]; // get number of components
+     pJPEG->ucComponentsInScan = uc;
++    if (uc == 1)
++        pJPEG->ucSubSample = 0; // non-interleaved scan: 1 block per MCU in raster order
+     sLen -= 3;
+     if (uc < 1 || uc > MAX_COMPS_IN_SCAN || sLen != (uc*2+3)) // check length of data packet
+         return 1; // error

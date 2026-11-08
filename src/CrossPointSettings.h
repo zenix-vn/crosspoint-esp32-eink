@@ -17,18 +17,23 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   friend class PersistableStore<CrossPointSettings>;
 
  public:
+  // The Settings menu offers the first SLEEP_SCREEN_CHOICES modes; the rest
+  // stay in code but can no longer be chosen.
   enum SLEEP_SCREEN_MODE {
     DARK = 0,
     LIGHT = 1,
-    CUSTOM = 2,
-    COVER = 3,
-    COVER_CUSTOM = 4,
-    BLANK = 5,
-    QUICK_RESUME = 6,
-    TRANSPARENT_CUSTOM = 7,
-    COVER_TRANSPARENT = 8,
+    TODAY = 2,
+    CUSTOM = 3,
+    COVER = 4,
+    COVER_CUSTOM = 5,
+    BLANK = 6,
+    QUICK_RESUME = 7,
+    TRANSPARENT_CUSTOM = 8,
+    COVER_TRANSPARENT = 9,
+    READING_CARD = 10,
     SLEEP_SCREEN_MODE_COUNT
   };
+  static constexpr uint8_t SLEEP_SCREEN_CHOICES = 3;
   enum SLEEP_SCREEN_COVER_MODE { FIT = 0, CROP = 1, SLEEP_SCREEN_COVER_MODE_COUNT };
   enum SLEEP_SCREEN_COVER_FILTER {
     NO_FILTER = 0,
@@ -202,7 +207,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   };
 
   // UI Theme
-  enum UI_THEME { CLASSIC = 0, LYRA = 1, LYRA_3_COVERS = 2, ROUNDEDRAFF = 3, COVER_GRID = 4 };
+  enum UI_THEME { CLASSIC = 0, LYRA = 1, LYRA_3_COVERS = 2, ROUNDEDRAFF = 3, COVER_GRID = 4, DESKTOP = 5 };
 
   // Image rendering in EPUB reader. IMAGES_DISPLAY_BW lays images out like
   // IMAGES_DISPLAY but draws them as a B/W dither, so image pages skip the
@@ -251,7 +256,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   };
 
   // Sleep screen settings
-  uint8_t sleepScreen = DARK;
+  uint8_t sleepScreen = TODAY;
   // Night mode: inverted output polarity, applied to every activity per
   // render by ActivityManager. The sleep screen opts out itself.
   uint8_t screenInverted = 0;
@@ -351,8 +356,32 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // Long-press Confirm function in EPUB reader (cycles through LONG_PRESS_MENU_FUNCTION values).
   // Defaults to Disabled so shortcut-based bookmark toggling remains opt-in.
   uint8_t longPressMenuFunction = LP_MENU_DISABLED;
-  // UI Theme
-  uint8_t uiTheme = LYRA;
+  // UI Theme. Desktop is the default on every board; a saved choice wins.
+  uint8_t uiTheme = DESKTOP;
+  // Shown in the Desktop home's status line; empty = STR_DEVICE_NAME_DEFAULT.
+  char deviceName[32] = "";
+  // Link key of the user's account on the inbox server (CROSSPOINT_INBOX_URL),
+  // or its shared inbox key; empty = not linked.
+  char inboxKey[64] = "";
+  // Power-off screen: optional custom text and BMP path on the SD card; empty = default.
+  char powerOffText[48] = "";
+  char powerOffImage[96] = "";
+  // Desktop home's reading-time target for one day.
+  uint8_t dailyReadingGoalMinutes = 30;
+  // New cards the vocabulary trainer introduces per day.
+  uint8_t vocabNewPerDay = 20;
+  // Language the vocabulary trainer teaches: a vocab::Language (0 English, 1 Chinese).
+  uint8_t vocabLanguage = 0;
+  // Desktop home redraws its clock each minute; off keeps the panel still.
+  uint8_t desktopClockLive = 1;
+  // Gray anti-aliasing of menu and page text outside the reader: each redraw
+  // adds a gray pass, so it costs time and a light flicker.
+  enum UI_ANTI_ALIASING : uint8_t { UI_AA_OFF = 0, UI_AA_STATIC = 1, UI_AA_ALWAYS = 2, UI_AA_COUNT };
+  uint8_t uiAntiAliasing = UI_AA_STATIC;
+  // Weather on Home and the Today sleep screen, refreshed on the way to sleep
+  // over the last-used saved Wi-Fi. Empty location = found from the network.
+  uint8_t weatherEnabled = 1;
+  char weatherLocation[48] = "";
   // Sunlight fading compensation
   uint8_t fadingFix = 0;
   // Power button return from footnotes (1 = enabled, 0 = disabled)
@@ -377,6 +406,8 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // Show the title and author read from inside each book rather than its
   // filename. Users can disable this to make index rebuilds skip EPUB parsing.
   uint8_t libraryUseMetadata = 1;
+  // OTA update channel (0 = stable latest.json, 1 = beta beta.json on the feed).
+  uint8_t otaChannel = 0;
   // Remove a book from the Recent Books list when its End-of-Book screen is reached (0 = off, 1 = on)
   uint8_t removeReadBooksFromRecents = 0;
   // Move epub to /Read/ folder on SD card when finished (0 = disabled, 1 = enabled)

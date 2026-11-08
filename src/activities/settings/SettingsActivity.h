@@ -25,12 +25,17 @@ enum class SettingAction {
   ClearCache,
   CheckForUpdates,
   SdFirmwareUpdate,
+  HiddenRecommendations,
   Language,
   DownloadFonts,
   TextSettings,
   Plugins,
   KeyboardLayouts,
   HomeButton,
+  DeviceName,
+  PowerOffText,
+  PowerOffImage,
+  VocabDeck,
   About,
 };
 

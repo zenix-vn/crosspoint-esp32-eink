@@ -14,6 +14,7 @@
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "EpubReaderActivity.h"
+#include "ReadingStatsStore.h"
 #include "ReaderUtils.h"
 #include "RecentBooksStore.h"
 #include "SdCardFontSystem.h"
@@ -52,6 +53,7 @@ void ReaderActivity::disableFastInitialRefresh() { pagesUntilFullRefresh = 0; }
 void ReaderActivity::notePageTurn(const bool forward, const bool succeeded) {
   RenderLock lock(*this);
   readerSession.noteTurn(forward, succeeded);
+  if (forward && succeeded && sessionPages < UINT16_MAX) ++sessionPages;
 }
 
 void ReaderActivity::onEnter() {
@@ -129,6 +131,18 @@ void ReaderActivity::onExit() {
 void ReaderActivity::prepareForSleep() { flushReaderSession(); }
 
 void ReaderActivity::flushReaderSession() {
+  if (readerSession.isEmitWorthy()) {
+    ReadingStatsStore::Session session;
+    session.path = bookPath;
+    session.endEpoch = static_cast<time_t>(readerSession.endTime());
+    session.seconds = readerSession.durationSeconds();
+    session.pages = sessionPages;
+    session.startBp = readerSession.startProgressBp();
+    session.endBp = readerSession.endProgressBp();
+    READING_STATS.addSession(session);
+    READING_STATS.saveToFile();
+  }
+  sessionPages = 0;
   if (!readerSession.isEmitWorthy() || !pluginevents::anySubscriber(pluginevents::Event::ReaderSession)) {
     readerSession.reset();
     return;

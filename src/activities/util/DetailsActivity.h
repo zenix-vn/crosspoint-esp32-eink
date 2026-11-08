@@ -38,6 +38,7 @@ class DetailsActivity final : public Activity, private UiAppHost {
   void onEnter() override;
   void loop() override;
   void render(RenderLock&&) override;
+  GrayText grayText() const override { return GrayText::Static; }
 
  private:
   static void detailsScreen(UiScreen& screen, void* user);

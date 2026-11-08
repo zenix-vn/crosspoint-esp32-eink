@@ -62,6 +62,19 @@ class Epub {
   std::string& getBasePath() { return contentBasePath; }
   bool load(bool buildIfMissing = true, bool skipLoadingCss = false);
   bool loadMetadata(std::string& title, std::string& author);
+  // What the Library index keeps beyond title and author.
+  struct LibraryMetadata {
+    std::string subjects;  // every dc:subject, joined by ", "
+    std::string series;
+    std::optional<float> seriesIndex;
+  };
+  // Always parses the OPF, since the book.bin cache keeps none of `extra`.
+  bool loadMetadata(std::string& title, std::string& author, LibraryMetadata& extra);
+
+ private:
+  bool loadMetadata(std::string& title, std::string& author, LibraryMetadata* extra);
+
+ public:
   bool loadSyncMetadata(SyncMetadata& metadata);
   bool clearCache() const;
   void setupCacheDir() const;

@@ -5,6 +5,7 @@
 #include <Memory.h>
 
 #include <algorithm>
+#include <cstdlib>
 #include <cstring>
 
 #include "LibraryText.h"
@@ -40,16 +41,34 @@ bool LibraryIndexFile::openImpl(const char* path, const bool acceptStaleFold) {
     return false;
   }
   opened = true;
+#ifdef BOARD_HAS_PSRAM
+  constexpr uint32_t MAX_IMAGE_BYTES = 4u << 20;
+  if (head.selfSize <= MAX_IMAGE_BYTES) {
+    image = makeUniqueNoThrow<uint8_t[]>(head.selfSize);
+    if (image && (!file.seekSet(0) || file.read(image.get(), head.selfSize) != static_cast<int>(head.selfSize))) {
+      image.reset();  // fall back to reading the card
+    }
+  }
+#endif
   return true;
 }
 
 void LibraryIndexFile::close() {
   if (file.isOpen()) file.close();
+  image.reset();
   opened = false;
 }
 
 bool LibraryIndexFile::readAt(const uint32_t offset, void* dst, const size_t len) {
   if (!opened) return false;
+  if (image) {
+    if (offset > head.selfSize || len > head.selfSize - offset) {
+      readFailed = true;
+      return false;
+    }
+    memcpy(dst, image.get() + offset, len);
+    return true;
+  }
   // Every offset handed to this function comes from the header, and the header
   // was validated against the real file size, so a short read means the card
   // changed under us rather than a bad computation.
@@ -229,6 +248,48 @@ bool LibraryIndexFile::readTitle(const ClixRecord& record, std::string& out) {
 
 bool LibraryIndexFile::readSourceAuthor(const ClixRecord& record, std::string& out) {
   return readBlobField(record, 2, out);
+}
+
+namespace {
+
+// Metadata text never holds control bytes or broken UTF-8; bytes that do came
+// from reading past the record's blob, so they are dropped rather than shown.
+bool plausibleText(const std::string& s) {
+  for (size_t i = 0; i < s.size();) {
+    const auto c = static_cast<unsigned char>(s[i]);
+    if (c < 0x20 || c == 0x7F) return false;
+    const size_t n = c < 0x80 ? 1 : (c >> 5) == 0x6 ? 2 : (c >> 4) == 0xE ? 3 : (c >> 3) == 0x1E ? 4 : 0;
+    if (n == 0 || i + n > s.size()) return false;
+    for (size_t k = 1; k < n; k++) {
+      if ((static_cast<unsigned char>(s[i + k]) & 0xC0) != 0x80) return false;
+    }
+    i += n;
+  }
+  return true;
+}
+
+}  // namespace
+
+bool LibraryIndexFile::readSubjects(const ClixRecord& record, std::string& out) {
+  if (!readBlobField(record, 3, out)) return false;
+  if (!plausibleText(out)) out.clear();
+  return true;
+}
+
+bool LibraryIndexFile::readSeries(const ClixRecord& record, std::string& name, float& index) {
+  index = -1.0f;
+  std::string number;
+  if (!readBlobField(record, 4, name) || !readBlobField(record, 5, number)) return false;
+  if (!plausibleText(name)) {
+    name.clear();
+    return true;
+  }
+  if (!number.empty()) {
+    char* end = nullptr;
+    const float parsed = std::strtof(number.c_str(), &end);
+    if (end != number.c_str() && parsed >= 0.0f) index = parsed;
+  }
+  return true;
 }
 
 bool LibraryIndexFile::readPath(const ClixRecord& record, std::string& out) {

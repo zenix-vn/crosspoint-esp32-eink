@@ -9,6 +9,7 @@
 #include <Memory.h>
 #include <ReleaseJsonParser.h>
 #include <esp_ota_ops.h>
+#include <mbedtls/sha256.h>
 // clang-format on
 
 #include <algorithm>
@@ -18,8 +19,26 @@
 #include "FirmwareBoardTag.h"
 #include "FirmwareFlasher.h"
 
+// A build can point OTA at its own feed: any HTTPS URL serving the same
+// GitHub-release JSON shape (tag_name plus assets with name,
+// browser_download_url and size).
+#ifndef CROSSPOINT_OTA_FEED_URL
+#define CROSSPOINT_OTA_FEED_URL "https://api.github.com/repos/crosspoint-reader/crosspoint-reader/releases/latest"
+#endif
+
 namespace {
-constexpr char latestReleaseUrl[] = "https://api.github.com/repos/crosspoint-reader/crosspoint-reader/releases/latest";
+constexpr char latestReleaseUrl[] = CROSSPOINT_OTA_FEED_URL;
+
+// "<dir>/latest.json" -> "<dir>/beta.json"; any other feed has no beta sibling.
+std::string feedUrl(const bool beta) {
+  std::string url = latestReleaseUrl;
+  constexpr char stable[] = "/latest.json";
+  constexpr size_t stableLen = sizeof(stable) - 1;
+  if (beta && url.size() > stableLen && url.compare(url.size() - stableLen, stableLen, stable) == 0) {
+    url.replace(url.size() - stableLen, stableLen, "/beta.json");
+  }
+  return url;
+}
 }  // namespace
 
 OtaUpdater::OtaUpdaterError OtaUpdater::checkForUpdate() {
@@ -48,7 +67,9 @@ OtaUpdater::OtaUpdaterError OtaUpdater::checkForUpdate() {
   }
   char assetName[48] = {};
   bool assetNameSet = false;
-  const bool ok = HttpDownloader::fetchUrl(latestReleaseUrl, [&](const uint8_t* data, size_t len) {
+  const std::string url = feedUrl(betaChannel);
+  LOG_DBG("OTA", "Feed: %s", url.c_str());
+  const bool ok = HttpDownloader::fetchUrl(url.c_str(), [&](const uint8_t* data, size_t len) {
     size_t offset = 0;
     while (!assetNameSet && offset < len) {
       releaseParser.feed(reinterpret_cast<const char*>(data + offset), 1);
@@ -81,6 +102,8 @@ OtaUpdater::OtaUpdaterError OtaUpdater::checkForUpdate() {
   }
 
   latestVersion = releaseParser.getTagName();
+  releaseNotes = releaseParser.getBody();
+  expectedSha256 = releaseParser.getFirmwareSha256();
   otaUrl = releaseParser.getFirmwareUrl();
   otaSize = releaseParser.getFirmwareSize();
   totalSize = otaSize;
@@ -102,8 +125,12 @@ bool OtaUpdater::isUpdateNewer() const {
   const auto currentVersion = CROSSPOINT_VERSION;
 
   // semantic version check (only match on 3 segments)
-  sscanf(latestVersion.c_str(), "%d.%d.%d", &latestMajor, &latestMinor, &latestPatch);
-  sscanf(currentVersion, "%d.%d.%d", &currentMajor, &currentMinor, &currentPatch);
+  const int latestParsed = sscanf(latestVersion.c_str(), "%d.%d.%d", &latestMajor, &latestMinor, &latestPatch);
+  const int currentParsed = sscanf(currentVersion, "%d.%d.%d", &currentMajor, &currentMinor, &currentPatch);
+  // A tag with no X.Y.Z cannot be ordered against this build.
+  if (latestParsed != 3) return false;
+  // A build with no X.Y.Z of its own (a named dev build) takes any versioned release.
+  if (currentParsed != 3) return true;
 
   /*
    * Compare major versions.
@@ -174,6 +201,12 @@ OtaUpdater::OtaUpdaterError OtaUpdater::installUpdate(ProgressCallback onProgres
   // the inactive OTA slot, but esp_ota_abort() below means it never becomes
   // the boot target.
   board_tag::Scanner tagScanner;
+  // Hash what is written so a truncated or corrupted download is caught before
+  // the image can become the boot target. esp_ota_end() only checks the image
+  // is well formed, not that it is the file the feed published.
+  mbedtls_sha256_context sha;
+  mbedtls_sha256_init(&sha);
+  mbedtls_sha256_starts(&sha, 0);
   const bool fetchOk = HttpDownloader::fetchUrl(otaUrl, [&](const uint8_t* data, size_t len) {
     if (hdrLen < sizeof(hdr)) {
       const size_t take = std::min(len, sizeof(hdr) - hdrLen);
@@ -200,6 +233,7 @@ OtaUpdater::OtaUpdaterError OtaUpdater::installUpdate(ProgressCallback onProgres
       flashOk = false;
       return false;  // abort the transfer
     }
+    mbedtls_sha256_update(&sha, data, len);
     processedSize += len;
     // Fire the callback only on whole-percent change. Per-chunk updates wake the
     // render task, whose framebuffer work contends with TLS on the internal arena,
@@ -214,6 +248,10 @@ OtaUpdater::OtaUpdaterError OtaUpdater::installUpdate(ProgressCallback onProgres
     return true;
   });
 
+  uint8_t digest[32];
+  mbedtls_sha256_finish(&sha, digest);
+  mbedtls_sha256_free(&sha);
+
   if (wrongChip || tagScanner.mismatch()) {
     LOG_ERR("OTA", "Firmware install aborted: wrong device");
     esp_ota_abort(otaHandle);
@@ -224,6 +262,22 @@ OtaUpdater::OtaUpdaterError OtaUpdater::installUpdate(ProgressCallback onProgres
     LOG_ERR("OTA", "Firmware install failed (%s)", flashOk ? "download" : "flash write");
     esp_ota_abort(otaHandle);
     return flashOk ? HTTP_ERROR : INTERNAL_UPDATE_ERROR;
+  }
+
+  if (!expectedSha256.empty()) {
+    char actual[65];
+    for (size_t i = 0; i < sizeof(digest); i++) snprintf(actual + i * 2, 3, "%02x", digest[i]);
+    if (expectedSha256 != actual) {
+      LOG_ERR("OTA", "SHA-256 mismatch: expected %s got %s", expectedSha256.c_str(), actual);
+      esp_ota_abort(otaHandle);
+      return CHECKSUM_ERROR;
+    }
+    LOG_INF("OTA", "SHA-256 verified");
+  } else if (totalSize > 0 && processedSize != totalSize) {
+    // Without a checksum, at least refuse a download shorter or longer than published.
+    LOG_ERR("OTA", "Size mismatch: expected %zu got %zu", totalSize, processedSize);
+    esp_ota_abort(otaHandle);
+    return CHECKSUM_ERROR;
   }
 
   esp_err = esp_ota_end(otaHandle);  // verifies the written image

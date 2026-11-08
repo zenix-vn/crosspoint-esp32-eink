@@ -36,6 +36,15 @@ class Activity {
 
   virtual void render(RenderLock&&) {}
 
+  // Which UI anti-aliasing setting lets the activity manager redraw a finished
+  // frame in the gray planes (render() runs again with display calls muted).
+  enum class GrayText : uint8_t {
+    Never,        // draws its own gray (reader, sleep, images) or cannot be redrawn
+    Interactive,  // changes with every key press: only "Everywhere"
+    Static,       // stays up for a while: "Static pages" and "Everywhere"
+  };
+  virtual GrayText grayText() const { return GrayText::Interactive; }
+
   // If immediate is true, the update will be triggered immediately.
   // Otherwise, it will be deferred until the end of the current loop iteration.
   virtual void requestUpdate(bool immediate = false);

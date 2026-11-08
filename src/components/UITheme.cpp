@@ -34,6 +34,8 @@ bool UITheme::supportsCoverGrid() { return HalMemory::getPsramHeap().totalBytes 
 
 bool UITheme::hasCoverGridHome() { return SETTINGS.uiTheme == CrossPointSettings::COVER_GRID && supportsCoverGrid(); }
 
+bool UITheme::hasDesktopHome() { return SETTINGS.uiTheme == CrossPointSettings::DESKTOP; }
+
 void UITheme::drawCoverGridHome(CoverGridHomeUi& home) { home.renderUi(); }
 
 void UITheme::setTheme(CrossPointSettings::UI_THEME type) {
@@ -46,6 +48,7 @@ void UITheme::setTheme(CrossPointSettings::UI_THEME type) {
       currentMetrics = &BaseMetrics::values;
       break;
     case CrossPointSettings::UI_THEME::COVER_GRID:
+    case CrossPointSettings::UI_THEME::DESKTOP:
     case CrossPointSettings::UI_THEME::LYRA: {
       // The cover home owns its screen-lifetime UI state; other screens retain Lyra styling.
       auto theme = makeUniqueNoThrow<LyraTheme>();

@@ -87,7 +87,9 @@ void ActivityManager::renderTaskLoop() {
       // The sleep screen forces normal polarity itself (SleepActivity).
       display.setInverted(SETTINGS.screenInverted != 0);
       const uint32_t renderingVisit = screenVisit;
+      const uint32_t displayCountBefore = renderer.displayCount();
       currentActivity->render(std::move(lock));
+      drawGrayText(lock, displayCountBefore);
       paintedVisit.store(renderingVisit, std::memory_order_release);
     }
     // Notify any task blocked in requestUpdateAndWait() that the render is done.
@@ -100,6 +102,31 @@ void ActivityManager::renderTaskLoop() {
       xTaskNotify(waiter, 1, eIncrement);
     }
   }
+}
+
+void ActivityManager::drawGrayText(RenderLock& lock, const uint32_t displayCountBefore) {
+  // Only a render that showed exactly one frame, still holds the lock and has
+  // no redraw queued behind it: anything else is mid-transition.
+  if (!currentActivity || !lock.ownsLock() || renderer.displayCount() != displayCountBefore + 1 ||
+      requestedUpdate.load() || ulTaskNotifyValueClear(nullptr, 0) != 0) {
+    return;
+  }
+  const uint8_t setting = SETTINGS.uiAntiAliasing;
+  bool wanted = false;
+  switch (currentActivity->grayText()) {
+    case Activity::GrayText::Never:
+      break;
+    case Activity::GrayText::Interactive:
+      wanted = setting == CrossPointSettings::UI_AA_ALWAYS;
+      break;
+    case Activity::GrayText::Static:
+      wanted = setting != CrossPointSettings::UI_AA_OFF;
+      break;
+  }
+  if (!wanted) return;
+  renderer.drawUiGrayscale([this, &lock] {
+    if (lock.ownsLock()) currentActivity->render(std::move(lock));
+  });
 }
 
 void ActivityManager::loop() {
@@ -299,6 +326,10 @@ void ActivityManager::goToSettings(const SettingsSection openSection) {
 
 void ActivityManager::goToFileBrowser(std::string path) {
   replaceActivity(std::make_unique<FileBrowserActivity>(renderer, mappedInput, std::move(path)));
+}
+
+void ActivityManager::goToControlCenter() {
+  pushActivity(std::make_unique<FrontlightPanelActivity>(renderer, mappedInput));
 }
 
 void ActivityManager::goToLibrary() {

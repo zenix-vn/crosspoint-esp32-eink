@@ -103,6 +103,9 @@ bool Epub::parseContentOpf(BookMetadataCache::BookMetadata& bookMetadata, const 
   // mark) text renders correctly — the device fonts have no mark positioning.
   bookMetadata.title = utf8ComposeNfc(opfParser.title);
   bookMetadata.author = utf8ComposeNfc(opfParser.author);
+  bookMetadata.subjects = utf8ComposeNfc(opfParser.subjects);
+  bookMetadata.series = utf8ComposeNfc(opfParser.series);
+  bookMetadata.seriesIndex = opfParser.seriesIndex;
   bookMetadata.language = opfParser.language;
 
   if (metadataOnly) {
@@ -651,25 +654,35 @@ bool Epub::load(const bool buildIfMissing, const bool skipLoadingCss) {
   return true;
 }
 
-bool Epub::loadMetadata(std::string& title, std::string& author) {
+bool Epub::loadMetadata(std::string& title, std::string& author) { return loadMetadata(title, author, nullptr); }
+
+bool Epub::loadMetadata(std::string& title, std::string& author, LibraryMetadata& extra) {
+  return loadMetadata(title, author, &extra);
+}
+
+bool Epub::loadMetadata(std::string& title, std::string& author, LibraryMetadata* extra) {
   title.clear();
   author.clear();
+  if (extra) *extra = {};
 
   if (Txt::isTxtOrMd(filepath)) {
     title = utf8ComposeNfc(FsHelpers::getFileNameWithoutExtension(filepath));
     return true;
   }
 
-  auto metadataCache = makeUniqueNoThrow<BookMetadataCache>(cachePath);
-  if (metadataCache && metadataCache->load()) {
-    title = metadataCache->coreMetadata.title;
-    author = metadataCache->coreMetadata.author;
-    return true;
+  // book.bin carries no subjects or series, so a caller asking for them always
+  // reads the OPF.
+  if (!extra) {
+    auto metadataCache = makeUniqueNoThrow<BookMetadataCache>(cachePath);
+    if (metadataCache && metadataCache->load()) {
+      title = metadataCache->coreMetadata.title;
+      author = metadataCache->coreMetadata.author;
+      return true;
+    }
+    if (!metadataCache) {
+      LOG_ERR("EBP", "Could not allocate metadata cache reader");
+    }
   }
-  if (!metadataCache) {
-    LOG_ERR("EBP", "Could not allocate metadata cache reader");
-  }
-  metadataCache.reset();
 
   ZipFile zip(filepath);
   if (!zip.open()) {
@@ -684,6 +697,11 @@ bool Epub::loadMetadata(std::string& title, std::string& author) {
 
   title = std::move(metadata.title);
   author = std::move(metadata.author);
+  if (extra) {
+    extra->subjects = std::move(metadata.subjects);
+    extra->series = std::move(metadata.series);
+    extra->seriesIndex = metadata.seriesIndex;
+  }
   return true;
 }
 

@@ -98,7 +98,7 @@ void renderCanvasRow(const uint8_t* grayRow, int srcY, GifContext& ctx) {
         const uint8_t gray = grayRow[srcX];
         uint8_t ditheredGray;
         if (useDithering) {
-          ditheredGray = applyBayerDither4Level(gray, outX, outY);
+          ditheredGray = applyDither4Level(gray, outX, outY);
         } else {
           ditheredGray = gray / 85;
           if (ditheredGray > 3) ditheredGray = 3;

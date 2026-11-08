@@ -305,6 +305,8 @@ class CrossPointWebServer::RouteHandler final : public RequestHandler {
         {"/settings", HTTP_GET, [](S& s) { s.handleSettingsPage(); }, nullptr},
         {"/api/settings", HTTP_GET, [](S& s) { s.handleGetSettings(); }, nullptr},
         {"/api/settings", HTTP_POST, [](S& s) { s.handlePostSettings(); }, nullptr},
+        {"/api/backup", HTTP_GET, [](S& s) { s.handleBackup(); }, nullptr},
+        {"/api/restore", HTTP_POST, [](S& s) { s.handleRestore(); }, nullptr},
 
         {"/fonts", HTTP_GET, [](S& s) { s.handleFontsPage(); }, nullptr},
         {"/api/fonts", HTTP_GET, [](S& s) { s.handleFontList(); }, nullptr},
@@ -1514,6 +1516,87 @@ void CrossPointWebServer::handleDelete() const {
 void CrossPointWebServer::handleSettingsPage() const {
   sendStaticContent(server.get(), SettingsPageHtml, sizeof(SettingsPageHtml), SettingsPageHtmlETag, "text/html");
   LOG_DBG("WEB", "Served settings page");
+}
+
+namespace {
+// What a backup carries: the reader's own state, never credentials (wifi.json,
+// opds.json, koreader.json are protectedpaths::SENSITIVE_FILES and stay out).
+constexpr const char* BACKUP_FILES[] = {"settings.json", "recent.json", "collections.json", "reading_stats.json",
+                                        "rec_hidden.txt"};
+constexpr char BACKUP_DIR[] = "/.crosspoint/";
+constexpr char BACKUP_FORMAT[] = "crosspoint-backup";
+constexpr size_t BACKUP_FILE_CAP = 128 * 1024;
+}  // namespace
+
+// One JSON file holding each backed-up store verbatim as a string, so a restore
+// writes back exactly the bytes the stores wrote.
+void CrossPointWebServer::handleBackup() const {
+  JsonDocument doc;
+  doc["format"] = BACKUP_FORMAT;
+  doc["version"] = 1;
+  doc["firmware"] = CROSSPOINT_VERSION;
+  JsonObject files = doc["files"].to<JsonObject>();
+  int included = 0;
+  for (const char* name : BACKUP_FILES) {
+    const std::string path = std::string(BACKUP_DIR) + name;
+    std::string content;
+    if (!Storage.exists(path.c_str()) || !Storage.readFileToString("WEB", path, BACKUP_FILE_CAP, content)) continue;
+    files[name] = content;
+    included++;
+  }
+  String body;
+  serializeJson(doc, body);
+  LOG_INF("WEB", "Backup: %d files, %u bytes", included, static_cast<unsigned>(body.length()));
+  server->sendHeader("Content-Disposition", "attachment; filename=\"crosspoint-backup.json\"");
+  server->sendHeader("Cache-Control", "no-store");
+  server->send(200, "application/json", body);
+}
+
+void CrossPointWebServer::handleRestore() {
+  if (!server->hasArg("plain")) {
+    server->send(400, "text/plain", "Missing JSON body");
+    return;
+  }
+  JsonDocument doc;
+  const DeserializationError err = deserializeJson(doc, server->arg("plain"));
+  if (err) {
+    server->send(400, "text/plain", String("Invalid JSON: ") + err.c_str());
+    return;
+  }
+  if (doc["format"] != BACKUP_FORMAT || !doc["files"].is<JsonObjectConst>()) {
+    server->send(400, "text/plain", "Not a CrossPoint backup file");
+    return;
+  }
+  // Only the known store names are written, whatever else the file names.
+  int restored = 0;
+  for (const char* name : BACKUP_FILES) {
+    JsonVariantConst value = doc["files"][name];
+    if (!value.is<const char*>()) continue;
+    const char* content = value.as<const char*>();
+    const size_t len = strlen(content);
+    if (len > BACKUP_FILE_CAP) continue;
+    const std::string path = std::string(BACKUP_DIR) + name;
+    HalFile file;
+    if (!Storage.openFileForWrite("WEB", path.c_str(), file)) {
+      LOG_ERR("WEB", "Restore: cannot write %s", path.c_str());
+      continue;
+    }
+    const bool ok = file.write(content, len) == len;
+    file.close();
+    if (ok) restored++;
+  }
+  JsonDocument reply;
+  reply["restored"] = restored;
+  String out;
+  serializeJson(reply, out);
+  server->send(200, "application/json", out);
+  LOG_INF("WEB", "Restore: %d files written, restarting", restored);
+  // The stores hold their state in memory and would write it back over the
+  // restored files; a restart makes them load what was just restored.
+  if (restored > 0) {
+    delay(500);
+    ESP.restart();
+  }
 }
 
 void CrossPointWebServer::handleGetSettings() const {

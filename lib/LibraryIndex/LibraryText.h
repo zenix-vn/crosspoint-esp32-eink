@@ -114,4 +114,28 @@ bool matchesQuery(std::string_view haystack, std::string_view needle);
 // hiding: a single word name simply keys on itself.
 std::string surnameKey(std::string_view displayAuthor);
 
+// Shelf words that match nearly every book ("fiction", "general", "văn học")
+// and so name no genre. `folded` is already through fold().
+bool isGenericSubject(std::string_view folded);
+
+// Calls fn(folded, shown) for each genre term of a stored subject list, where
+// `shown` is the trimmed original spelling (a view into `subjects`). Subjects
+// are stored joined by ", " and often carry BISAC paths ("FICTION / Fantasy /
+// Epic"), so every common separator splits; generic and very short terms are
+// skipped.
+template <typename Fn>
+void forEachSubjectTerm(const std::string_view subjects, Fn&& fn) {
+  size_t pos = 0;
+  while (pos < subjects.size()) {
+    size_t end = subjects.find_first_of(",;/|&>", pos);
+    if (end == std::string_view::npos) end = subjects.size();
+    std::string_view shown = subjects.substr(pos, end - pos);
+    while (!shown.empty() && shown.front() == ' ') shown.remove_prefix(1);
+    while (!shown.empty() && shown.back() == ' ') shown.remove_suffix(1);
+    const std::string folded = fold(shown);
+    if (folded.size() >= 3 && !isGenericSubject(folded)) fn(folded, shown);
+    pos = end + 1;
+  }
+}
+
 }  // namespace library

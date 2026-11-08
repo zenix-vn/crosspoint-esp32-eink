@@ -43,7 +43,9 @@ class HalPowerManager {
   // wakeOnHeldButton: arm the wake without waiting for the power button's
   // release, so a press that is still down wakes the device straight back up
   // through the normal power-button wake path.
-  void startDeepSleep(HalGPIO& gpio, bool wakeOnHeldButton = false) const;
+  // powerOff drops the power latches instead of holding them, so the board's
+  // peripheral rails go dark and the next power-button press cold-boots.
+  void startDeepSleep(HalGPIO& gpio, bool wakeOnHeldButton = false, bool powerOff = false) const;
 
 #if FREEINK_DEVICE_PICCO
   // While USB powers the device, light-sleep instead of deep sleep (deep sleep

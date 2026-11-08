@@ -25,8 +25,12 @@
 
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
+#include "RecentBooksStore.h"
 #include "activities/reader/ReaderUtils.h"
+#include "components/DesktopHomeUi.h"
 #include "components/UITheme.h"
+#include "network/WeatherFetcher.h"
+#include "vocab/VocabDeck.h"
 #include "fontIds.h"
 #include "images/Logo120.h"
 #include "images/MoonIcon.h"
@@ -736,6 +740,14 @@ void SleepActivity::onEnter() {
     GUI.drawPopup(renderer, tr(STR_ENTERING_SLEEP));
   }
 
+  // Weather for Home and the Today screen, whatever this sleep screen is. The
+  // device restarts on wake, so joining Wi-Fi here costs no extra restart.
+  {
+    weather::Forecast forecast;
+    forecast.load();
+    weather::refreshBeforeSleep(forecast);
+  }
+
   switch (SETTINGS.sleepScreen) {
     case (CrossPointSettings::SLEEP_SCREEN_MODE::BLANK):
       return renderBlankSleepScreen();
@@ -743,6 +755,10 @@ void SleepActivity::onEnter() {
       return renderCustomSleepScreen();
     case (CrossPointSettings::SLEEP_SCREEN_MODE::COVER):
       return renderCoverSleepScreen();
+    case (CrossPointSettings::SLEEP_SCREEN_MODE::READING_CARD):
+      return renderReadingCardSleepScreen();
+    case (CrossPointSettings::SLEEP_SCREEN_MODE::TODAY):
+      return renderTodaySleepScreen();
     case (CrossPointSettings::SLEEP_SCREEN_MODE::COVER_CUSTOM):
       if (APP_STATE.lastSleepFromReader) {
         return renderCoverSleepScreen();
@@ -824,7 +840,7 @@ void SleepActivity::renderDefaultSleepScreen() const {
   const auto pageHeight = renderer.getScreenHeight();
 
   renderer.clearScreen();
-  renderer.drawImage(Logo120, (pageWidth - 120) / 2, (pageHeight - 120) / 2, 120, 120);
+  renderer.drawImage(Logo120, (pageWidth - LOGO_WIDTH) / 2, (pageHeight - LOGO_HEIGHT) / 2, LOGO_HEIGHT, LOGO_WIDTH);
   renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2 + 70, tr(STR_CROSSPOINT), true, EpdFontFamily::BOLD);
   renderer.drawCenteredText(SMALL_FONT_ID, pageHeight / 2 + 95, tr(STR_SLEEPING));
 
@@ -1097,6 +1113,79 @@ void SleepActivity::renderCoverSleepScreen() const {
   }
 
   return (this->*renderNoCoverSleepScreen)();
+}
+
+void SleepActivity::renderReadingCardSleepScreen() const {
+  constexpr int THUMB_HEIGHT = 400;
+  const auto& books = RECENT_BOOKS.getBooks();
+  if (books.empty() || RecentBooksStore::isMissing(books.front())) return renderDefaultSleepScreen();
+  RecentBook book = books.front();
+
+  // Generate the card's thumb if it is missing; one parser at a time, off the stack.
+  if (FsHelpers::hasReflowableBookExtension(book.path)) {
+    auto epub = makeUniqueNoThrow<Epub>(book.path, "/.crosspoint");
+    if (epub) {
+      book.coverBmpPath = epub->getThumbBmpPath();
+      if (!Storage.exists(epub->getThumbBmpPath(THUMB_HEIGHT).c_str())) epub->generateThumbBmpFromSource(THUMB_HEIGHT);
+    }
+  } else if (FsHelpers::hasXtcExtension(book.path)) {
+    auto xtc = makeUniqueNoThrow<Xtc>(book.path, "/.crosspoint");
+    if (xtc) {
+      book.coverBmpPath = xtc->getThumbBmpPath();
+      if (!Storage.exists(xtc->getThumbBmpPath(THUMB_HEIGHT).c_str()) && xtc->load()) {
+        xtc->generateThumbBmp(THUMB_HEIGHT);
+      }
+    }
+  }
+
+  const DesktopHomeUi::BookInfo info = DesktopHomeUi::readBookInfo(book);
+  renderer.clearScreen();
+  DesktopHomeUi::drawSleepCard(renderer, book, info, DesktopHomeUi::quoteOfDay());
+  renderer.displayBuffer(kSleepClean);
+}
+
+void SleepActivity::renderTodaySleepScreen() const {
+  // Refreshed by onEnter() just before.
+  weather::Forecast forecast;
+  forecast.load();
+
+  DesktopHomeUi::TodayInfo info;
+  vocab::TrainerState state;
+  state.load();
+  const int32_t day = vocab::studyDay(state);
+  info.vocabStreak = state.currentStreak(day);
+  const std::string& deckName = state.deckFor(
+      vocab::languageFromSetting(SETTINGS.vocabLanguage));
+  if (!deckName.empty()) {
+    vocab::Deck deck;
+    if (deck.open(deckName)) {
+      const vocab::Counts counts = deck.counts(day);
+      info.vocabDue = counts.due;
+      info.vocabLearned = counts.learned;
+      info.vocabTotal = deck.cardCount();
+    }
+  }
+
+  RecentBook book;
+  const auto& books = RECENT_BOOKS.getBooks();
+  if (!books.empty() && !RecentBooksStore::isMissing(books.front())) {
+    book = books.front();
+    info.book = &book;
+    info.bookPercent = DesktopHomeUi::readBookInfo(book).percent;
+  }
+
+  const DesktopHomeUi::Quote* quote = DesktopHomeUi::quoteOfDay();
+  const auto draw = [&] { DesktopHomeUi::drawTodayCard(renderer, info, &forecast, quote); };
+  renderer.clearScreen();
+  draw();
+  renderer.displayBuffer(kSleepClean);
+  // The screen stays up for hours: give its text the gray edges.
+  if (SETTINGS.uiAntiAliasing != CrossPointSettings::UI_AA_OFF) {
+    renderer.drawUiGrayscale([&] {
+      renderer.clearScreen();
+      draw();
+    });
+  }
 }
 
 void SleepActivity::renderLastScreenSleepScreen() const {

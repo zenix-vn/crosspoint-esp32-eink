@@ -18,6 +18,7 @@ class ContentOpfParser final : public Print {
     IN_METADATA,
     IN_BOOK_TITLE,
     IN_BOOK_AUTHOR,
+    IN_BOOK_SUBJECT,
     IN_BOOK_LANGUAGE,
     IN_BOOK_IDENTIFIER,
     IN_META_TEXT,
@@ -42,6 +43,7 @@ class ContentOpfParser final : public Print {
   // separation as element state rather than inferring either from callbacks.
   bool metadataSpacePending = false;
   bool authorSeparatorPending = false;
+  bool subjectSeparatorPending = false;
 
   std::string identifierText;
   std::string identifierScheme;
@@ -85,6 +87,8 @@ class ContentOpfParser final : public Print {
  public:
   std::string title;
   std::string author;
+  // Every dc:subject, joined by ", " like multiple creators.
+  std::string subjects;
   std::string language;
   std::string isbn;
   std::string asin;

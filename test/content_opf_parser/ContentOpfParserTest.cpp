@@ -53,6 +53,21 @@ Octavia E. Butler
   EXPECT_EQ(parser.author, "Ursula K. Le Guin, Octavia E. Butler");
 }
 
+TEST(ContentOpfParserMetadata, JoinsSubjectElements) {
+  const std::string xml = R"(<package xmlns:dc="urn:dc"><metadata>
+    <dc:title>Dune</dc:title>
+    <dc:subject> Science   Fiction </dc:subject>
+    <dc:subject>FICTION / Space Opera</dc:subject>
+  </metadata></package>)";
+  ContentOpfParser parser("", "", xml.size(), nullptr);
+
+  parse(parser, xml);
+
+  EXPECT_EQ(parser.title, "Dune");
+  EXPECT_EQ(parser.subjects, "Science Fiction, FICTION / Space Opera");
+  EXPECT_TRUE(parser.author.empty());
+}
+
 TEST(ContentOpfParserMetadata, ExtractsIsbnAsinAndCalibreSeries) {
   const std::string xml = R"(<package xmlns:dc="urn:dc" xmlns:opf="urn:opf"><metadata>
     <dc:identifier opf:scheme="ISBN">978-1-4028-9462-6</dc:identifier>

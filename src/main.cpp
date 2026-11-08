@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <Bitmap.h>
 #include <BlePageTurner.h>
 #include <BoardConfig.h>
 #include <Epub.h>
@@ -22,10 +23,13 @@
 #include <WiFi.h>
 #include <XteinkDetect.h>
 #include <builtinFonts/all.h>
+#include <builtinFonts/notosans_ipa_12_regular.h>
+#include <builtinFonts/notosans_sc_18_hsk.h>
 #include <esp_heap_caps.h>
 #include <esp_wifi.h>
 #include <time.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cstdarg>
 #include <cstring>
@@ -37,6 +41,8 @@
 #include "MappedInputManager.h"
 #include "OpdsServerStore.h"
 #include "OpdsTokenStore.h"
+#include "CollectionsStore.h"
+#include "ReadingStatsStore.h"
 #include "RecentBooksStore.h"
 #include "SdCardFontSystem.h"
 #include "WifiCredentialStore.h"
@@ -44,6 +50,8 @@
 #include "activities/ActivityManager.h"
 #include "activities/settings/SdFirmwareUpdateActivity.h"
 #include "components/UITheme.h"
+#include "HanFont.h"
+#include "IpaFont.h"
 #include "fontIds.h"
 #include "platform/UsbSerialJtagHandoff.h"
 #include "util/ButtonNavigator.h"
@@ -119,6 +127,13 @@ EpdFontFamily ui10FontFamily(10, &ui10RegularFont, &ui10BoldFont);
 EpdFont ui12RegularFont(&ubuntu_12_regular);
 EpdFont ui12BoldFont(&ubuntu_12_bold);
 EpdFontFamily ui12FontFamily(12, &ui12RegularFont, &ui12BoldFont);
+
+// Phonetic transcriptions in the vocabulary trainer (see IpaFont.h).
+EpdFont ipa12RegularFont(&notosans_ipa_12_regular);
+EpdFontFamily ipa12FontFamily(12, &ipa12RegularFont);
+// Chinese words in the vocabulary trainer without a Han SD font (see HanFont.h).
+EpdFont han18RegularFont(&notosans_sc_18_hsk);
+EpdFontFamily han18FontFamily(18, &han18RegularFont);
 
 // Definitions for SilentRestart.h. RTC_NOINIT survives ESP.restart() but not power loss.
 RTC_NOINIT_ATTR uint32_t silentRebootMagic;
@@ -464,8 +479,44 @@ static bool holdSleepWhileUsbPowered() {
 }
 #endif
 
-// Enter deep sleep mode
-void enterDeepSleep(bool fromTimeout = false) {
+// Power-off screen: there is no sleep screen to resume into, so say so plainly.
+void renderPowerOffScreen() {
+  RenderLock lock;
+  renderer.setOrientation(GfxRenderer::Orientation::Portrait);
+  renderer.clearScreen();
+  const int screenW = renderer.getScreenWidth();
+  const int screenH = renderer.getScreenHeight();
+  int middle = screenH / 2;
+
+  // Optional user image (Settings > System): drawn above the text block, downscale only.
+  if (SETTINGS.powerOffImage[0]) {
+    HalFile file;
+    if (Storage.openFileForRead("PWR", SETTINGS.powerOffImage, file)) {
+      Bitmap bitmap(file);
+      if (bitmap.parseHeaders() == BmpReaderError::Ok && bitmap.getWidth() > 0 && bitmap.getHeight() > 0) {
+        const int textBlock = renderer.getLineHeight(UI_12_FONT_ID) + renderer.getLineHeight(UI_10_FONT_ID) + 40;
+        const int maxW = screenW - 40;
+        const int maxH = screenH - textBlock - 40;
+        const float scale =
+            std::min({1.0f, static_cast<float>(maxW) / bitmap.getWidth(), static_cast<float>(maxH) / bitmap.getHeight()});
+        const int w = std::max(1, static_cast<int>(bitmap.getWidth() * scale));
+        const int h = std::max(1, static_cast<int>(bitmap.getHeight() * scale));
+        const int top = (screenH - h - textBlock) / 2;
+        renderer.drawBitmap(bitmap, (screenW - w) / 2, top, w, h);
+        middle = top + h + 20 + renderer.getLineHeight(UI_12_FONT_ID);
+      }
+    }
+  }
+
+  const char* title = SETTINGS.powerOffText[0] ? SETTINGS.powerOffText : tr(STR_POWER_OFF_DONE);
+  renderer.drawCenteredText(UI_12_FONT_ID, middle - renderer.getLineHeight(UI_12_FONT_ID), title, true,
+                            EpdFontFamily::BOLD);
+  renderer.drawCenteredText(UI_10_FONT_ID, middle + 8, tr(STR_POWER_OFF_HINT));
+  renderer.displayBuffer(HalDisplay::FULL_REFRESH);
+}
+
+// Enter deep sleep mode; powerOff also drops the power rails (a long power hold).
+void enterDeepSleep(bool fromTimeout = false, bool powerOff = false) {
   HalPowerManager::Lock powerLock;  // Ensure we are at normal CPU frequency for sleep preparation
   APP_STATE.lastSleepFromReader = activityManager.isReaderActivity();
 
@@ -489,9 +540,16 @@ void enterDeepSleep(bool fromTimeout = false) {
 
   APP_STATE.saveToFile();
 
-  activityManager.goToSleep(fromTimeout);
+  if (powerOff) {
+    renderPowerOffScreen();
+#if FREEINK_CAP_FRONTLIGHT
+    Frontlight.setOn(false);
+#endif
+  } else {
+    activityManager.goToSleep(fromTimeout);
+  }
 
-  if (isQuickResumeSleep) {
+  if (isQuickResumeSleep && !powerOff) {
     saveSleepFrameBuffer();
   } else if (Storage.exists(SLEEP_FRAME_FILE)) {
     // A stale Quick Resume frame must not replace the selected sleep screen during wake.
@@ -519,7 +577,7 @@ void enterDeepSleep(bool fromTimeout = false) {
   Storage.prepareForDeepSleep();
   LOG_DBG("MAIN", "Entering deep sleep");
 
-  powerManager.startDeepSleep(gpio, wakeOnHeldButton);
+  powerManager.startDeepSleep(gpio, wakeOnHeldButton, powerOff);
 }
 
 void setupDisplayAndFonts(bool seamless = false) {
@@ -556,6 +614,8 @@ void setupDisplayAndFonts(bool seamless = false) {
   renderer.insertFont(UI_10_FONT_ID, ui10FontFamily);
   renderer.insertFont(UI_12_FONT_ID, ui12FontFamily);
   renderer.insertFont(SMALL_FONT_ID, smallFontFamily);
+  renderer.insertFont(IPA_12_FONT_ID, ipa12FontFamily);
+  renderer.insertFont(HAN_18_FONT_ID, han18FontFamily);
 
   // Discover and load SD card fonts
   sdFontSystem.begin(renderer);
@@ -665,6 +725,8 @@ void setup() {
   // UTC-offset setting on first boot after the update).
   timezones::applyToClock();
   RECENT_BOOKS.loadFromFile();
+  READING_STATS.loadFromFile();
+  COLLECTIONS.loadFromFile();
   I18N.setLanguage(static_cast<Language>(SETTINGS.language));
   KOREADER_STORE.loadFromFile();
   OPDS_STORE.loadFromFile();
@@ -1028,13 +1090,35 @@ void loop() {
                                         SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::SLEEP &&
                                         gpio.getPowerButtonHeldTime() <= X4PRO_POWER_CLICK_MAX_HOLD_MS;
 
+  // A power hold sleeps on release; holding on to POWER_OFF_HOLD_MS powers off.
+  constexpr unsigned long POWER_OFF_HOLD_MS = 3000;
+  static bool powerHoldArmed = false;
+  static bool powerHoldHintShown = false;
   if (!x4ProAwaitingClickWindow && powerReleasedSinceWake && millis() >= allowSleepAt &&
       gpio.isPressed(HalGPIO::BTN_POWER) && gpio.getPowerButtonHeldTime() > SETTINGS.getPowerButtonDuration()) {
     // If the screenshot combination is potentially being pressed, don't sleep
     if (gpio.isPressed(HalGPIO::BTN_DOWN)) {
       return;
     }
-    LOG_DBG("MAIN", "Power button held %lums, sleeping", gpio.getPowerButtonHeldTime());
+    if (gpio.getPowerButtonHeldTime() >= POWER_OFF_HOLD_MS) {
+      LOG_DBG("MAIN", "Power button held %lums, powering off", gpio.getPowerButtonHeldTime());
+      enterDeepSleep(false, true);
+      return;
+    }
+    powerHoldArmed = true;
+    // Past a quick press, tell the user what letting go does.
+    constexpr unsigned long POWER_HOLD_HINT_MS = 800;
+    if (!powerHoldHintShown && gpio.getPowerButtonHeldTime() >= POWER_HOLD_HINT_MS) {
+      powerHoldHintShown = true;
+      RenderLock lock;
+      GUI.drawPopup(renderer, tr(STR_POWER_HOLD_HINT));
+    }
+    return;
+  }
+  if (powerHoldArmed && !gpio.isPressed(HalGPIO::BTN_POWER)) {
+    powerHoldArmed = false;
+    powerHoldHintShown = false;
+    LOG_DBG("MAIN", "Power button released, sleeping");
     enterDeepSleep();
     // This should never be hit as `enterDeepSleep` calls esp_deep_sleep_start
     return;

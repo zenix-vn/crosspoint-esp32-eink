@@ -81,7 +81,7 @@ void HalPowerManager::setPowerSaving(bool enabled) {
   xSemaphoreGive(modeMutex);
 }
 
-void HalPowerManager::startDeepSleep(HalGPIO& gpio, const bool wakeOnHeldButton) const {
+void HalPowerManager::startDeepSleep(HalGPIO& gpio, const bool wakeOnHeldButton, const bool powerOff) const {
 #if FREEINK_DEVICE_EEGO_A4 || FREEINK_DEVICE_PICCO
   // The frontlight driver and touch share I2C; turn the light off before touch
   // releases the bus. On Picco this also puts the TMA525C to sleep.
@@ -119,7 +119,8 @@ void HalPowerManager::startDeepSleep(HalGPIO& gpio, const bool wakeOnHeldButton)
   // button press cold-boots instead of fast-waking. holdPowerRails() asserted
   // the latches at boot but arms no sleep hold; arm it here instead. Skips
   // XTEINK_C3_GPIO13: it IS power.latch0 on the C3 Xteink boards, where the
-  // block above drives it LOW on purpose (battery power-off).
+  // block above drives it LOW on purpose (battery power-off). A power-off holds
+  // the latches LOW instead: the rails drop, and waking is a cold boot.
   for (const int8_t pin : {BoardConfig::ACTIVE.power.latch0, BoardConfig::ACTIVE.power.latch1}) {
     if (pin < 0 || static_cast<gpio_num_t>(pin) == XTEINK_C3_GPIO13) continue;
     const auto g = static_cast<gpio_num_t>(pin);
@@ -127,7 +128,7 @@ void HalPowerManager::startDeepSleep(HalGPIO& gpio, const bool wakeOnHeldButton)
     // drive below (same trap as the GPIO13 block above).
     gpio_hold_dis(g);
     pinMode(pin, OUTPUT);
-    digitalWrite(pin, HIGH);
+    digitalWrite(pin, powerOff ? LOW : HIGH);
     gpio_hold_en(g);
   }
 

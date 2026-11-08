@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Gửi sách</title>
+<style>
+  :root { --bg:#f6f5f2; --card:#fff; --ink:#1d1d1b; --muted:#6b6a66; --line:#e3e1db; --accent:#1d1d1b; --bad:#b3261e; --ok:#1e6b3a; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#161615; --card:#21211f; --ink:#ecebe6; --muted:#a3a29c; --line:#34332f; --accent:#ecebe6; --bad:#f2b8b5; --ok:#9fd8b0; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width:640px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:1.6rem; margin:0 0 4px; }
+  p.lead { color:var(--muted); margin:0 0 20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
+  label { display:block; font-weight:600; margin-bottom:6px; }
+  input[type=password], input[type=text] { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font:inherit; }
+  .drop { border:2px dashed var(--line); border-radius:12px; padding:28px 16px; text-align:center; color:var(--muted); cursor:pointer; }
+  .drop.over { border-color:var(--accent); color:var(--ink); }
+  button { font:inherit; padding:10px 16px; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:var(--bg); cursor:pointer; }
+  button.ghost { background:transparent; color:var(--ink); border-color:var(--line); padding:6px 10px; }
+  button:disabled { opacity:.5; cursor:default; }
+  ul { list-style:none; margin:0; padding:0; }
+  li { display:flex; gap:12px; align-items:center; justify-content:space-between; padding:10px 0; border-top:1px solid var(--line); }
+  li:first-child { border-top:0; }
+  .name { overflow-wrap:anywhere; }
+  .size { color:var(--muted); font-size:.875rem; white-space:nowrap; }
+  #status { min-height:1.5em; margin-top:10px; }
+  .bad { color:var(--bad); } .ok { color:var(--ok); }
+  progress { width:100%; margin-top:10px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Gửi sách lên máy đọc</h1>
+  <p class="lead">Sách tải lên sẽ chờ ở đây. Trên máy đọc, vào <b>Thêm → Nhận sách</b>; máy tải sách về thư mục <code>/Inbox</code> rồi xoá khỏi đây.</p>
+
+  <div class="card">
+    <label for="key">Khoá hộp thư</label>
+    <input id="key" type="password" autocomplete="current-password" placeholder="Dán khoá hộp thư">
+  </div>
+
+  <div class="card">
+    <div class="drop" id="drop">Kéo thả file vào đây hoặc <u>chọn file</u><br><small>EPUB, TXT, MD, XTC, bộ từ vựng .tsv — tối đa 200 MB mỗi file</small></div>
+    <input id="files" type="file" multiple accept=".epub,.txt,.md,.xtc,.xtch,.tsv" hidden>
+    <progress id="progress" value="0" max="100" hidden></progress>
+    <div id="status"></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <b>Đang chờ máy nhận</b>
+      <button class="ghost" id="refresh" type="button">Làm mới</button>
+    </div>
+    <ul id="list"><li class="size">Nhập khoá để xem.</li></ul>
+  </div>
+</main>
+<script>
+  const api = 'api.php';
+  const keyInput = document.getElementById('key');
+  const statusEl = document.getElementById('status');
+  const listEl = document.getElementById('list');
+  const progressEl = document.getElementById('progress');
+  const fileInput = document.getElementById('files');
+  const drop = document.getElementById('drop');
+
+  try { keyInput.value = localStorage.getItem('inboxKey') || ''; } catch (e) {}
+  keyInput.addEventListener('change', () => {
+    try { localStorage.setItem('inboxKey', keyInput.value.trim()); } catch (e) {}
+    refresh();
+  });
+
+  function setStatus(text, cls) { statusEl.textContent = text; statusEl.className = cls || ''; }
+  function fmtSize(n) { return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
+  function headers() { return { 'X-Inbox-Key': keyInput.value.trim() }; }
+
+  async function refresh() {
+    if (!keyInput.value.trim()) return;
+    try {
+      const resp = await fetch(api + '?action=list', { headers: headers(), cache: 'no-store' });
+      if (resp.status === 403) { listEl.innerHTML = '<li class="bad">Sai khoá.</li>'; return; }
+      const data = await resp.json();
+      listEl.innerHTML = '';
+      if (!data.books.length) { listEl.innerHTML = '<li class="size">Không có sách nào đang chờ.</li>'; return; }
+      for (const book of data.books) {
+        const li = document.createElement('li');
+        const name = document.createElement('span'); name.className = 'name'; name.textContent = book.name;
+        const right = document.createElement('span'); right.style.display = 'flex'; right.style.gap = '8px'; right.style.alignItems = 'center';
+        const size = document.createElement('span'); size.className = 'size'; size.textContent = fmtSize(book.size);
+        const del = document.createElement('button'); del.className = 'ghost'; del.type = 'button'; del.textContent = 'Xoá';
+        del.onclick = () => remove(book.id);
+        right.append(size, del); li.append(name, right); listEl.append(li);
+      }
+    } catch (e) { listEl.innerHTML = '<li class="bad">Không tải được danh sách.</li>'; }
+  }
+
+  async function remove(id) {
+    const body = new FormData(); body.append('action', 'delete'); body.append('id', id);
+    await fetch(api, { method: 'POST', headers: headers(), body });
+    refresh();
+  }
+
+  function upload(files) {
+    if (!keyInput.value.trim()) { setStatus('Nhập khoá hộp thư trước.', 'bad'); keyInput.focus(); return; }
+    if (!files.length) return;
+    const body = new FormData();
+    body.append('action', 'upload');
+    for (const f of files) body.append('files[]', f, f.name);
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', api);
+    xhr.setRequestHeader('X-Inbox-Key', keyInput.value.trim());
+    progressEl.hidden = false; progressEl.value = 0;
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) progressEl.value = e.loaded / e.total * 100; };
+    xhr.onload = () => {
+      progressEl.hidden = true;
+      if (xhr.status === 403) { setStatus('Sai khoá hộp thư.', 'bad'); return; }
+      try {
+        const r = JSON.parse(xhr.responseText);
+        const parts = [];
+        if (r.saved && r.saved.length) parts.push('Đã gửi ' + r.saved.length + ' sách.');
+        if (r.rejected && r.rejected.length) parts.push('Bỏ qua: ' + r.rejected.map(x => x[0] + ' (' + x[1] + ')').join(', '));
+        setStatus(parts.join(' ') || 'Không có gì được gửi.', r.rejected && r.rejected.length ? 'bad' : 'ok');
+      } catch (e) { setStatus('Tải lên thất bại (' + xhr.status + ').', 'bad'); }
+      refresh();
+    };
+    xhr.onerror = () => { progressEl.hidden = true; setStatus('Mất kết nối khi tải lên.', 'bad'); };
+    setStatus('Đang tải lên…');
+    xhr.send(body);
+  }
+
+  drop.onclick = () => fileInput.click();
+  fileInput.onchange = () => { upload([...fileInput.files]); fileInput.value = ''; };
+  drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); upload([...e.dataTransfer.files]); };
+  document.getElementById('refresh').onclick = refresh;
+  refresh();
+</script>
+</body>
+</html>

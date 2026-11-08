@@ -10,7 +10,8 @@
 class FileBrowserActivity final : public UiListActivity {
  public:
   // Books = standard reader browser; PickFirmware = filter to .bin only and return path via ActivityResult.
-  enum class Mode { Books, PickFirmware };
+  // PickBmp = same, filtered to .bmp (power-off image).
+  enum class Mode { Books, PickFirmware, PickBmp };
 
  private:
   // File actions
@@ -22,6 +23,7 @@ class FileBrowserActivity final : public UiListActivity {
   void deleteSelected();
 
   Mode mode = Mode::Books;
+  bool isPicker() const { return mode != Mode::Books; }
 
   // Files state
   std::string basepath = "/";

@@ -10,4 +10,5 @@ class CrashActivity final : public Activity {
   void onEnter() override;
   void loop() override;
   void render(RenderLock&&) override;
+  GrayText grayText() const override { return GrayText::Static; }
 };

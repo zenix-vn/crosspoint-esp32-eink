@@ -3,6 +3,7 @@
 #include <Utf8.h>
 
 #include <algorithm>
+#include <iterator>
 
 namespace library {
 
@@ -396,6 +397,14 @@ std::string surnameKey(const std::string_view displayAuthor) {
   key.push_back(' ');
   key.append(folded.substr(0, sep));
   return key;
+}
+
+// fold() has already turned "Non-Fiction" into "non fiction".
+bool isGenericSubject(const std::string_view folded) {
+  static constexpr const char* GENERIC[] = {"fiction", "nonfiction", "non fiction", "general", "literature",
+                                            "ebook",   "ebooks",     "book",        "books",   "van hoc",
+                                            "sach",    "tieu thuyet"};
+  return std::any_of(std::begin(GENERIC), std::end(GENERIC), [&](const char* g) { return folded == g; });
 }
 
 }  // namespace library

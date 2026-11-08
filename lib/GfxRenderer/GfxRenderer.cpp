@@ -612,6 +612,8 @@ void GfxRenderer::drawGlyphBitmap(const uint8_t* bitmap, const int width, const 
   physical.dyX = nextX - physical.x;
   physical.dyY = nextY - physical.y;
 
+  // White text is not anti-aliased by the UI pass; its edges are white in B/W.
+  if (!state && uiGrayPass_) return;
   const glyphBitmap::Plane plane = mode == BW              ? glyphBitmap::Plane::BW
                                    : mode == GRAYSCALE_MSB ? glyphBitmap::Plane::GrayMSB
                                                            : glyphBitmap::Plane::GrayLSB;
@@ -622,6 +624,7 @@ void GfxRenderer::drawGlyphBitmap(const uint8_t* bitmap, const int width, const 
 // efficient as possible.
 void GfxRenderer::drawPixel(const int x, const int y, const bool state) const {
   if (x < clipLeft_ || y < clipTop_ || x >= clipRight_ || y >= clipBottom_) return;
+  if (!state && uiGrayPass_) return;
   int phyX = 0;
   int phyY = 0;
 
@@ -1060,6 +1063,10 @@ void GfxRenderer::fillRectDither(const int x, const int y, const int width, cons
 template <Color C>
 void GfxRenderer::fillRectImpl(const int x, const int y, const int width, const int height) const {
   if constexpr (C == Color::Clear) return;
+  // Only black fills reach the UI gray planes (where they clear gray marks).
+  if constexpr (C != Color::Black) {
+    if (uiGrayPass_) return;
+  }
   if (width <= 0 || height <= 0) return;
   if (fontCacheManager_ && fontCacheManager_->isScanning()) return;
 
@@ -1702,6 +1709,7 @@ void GfxRenderer::fillPolygon(const int* xPoints, const int* yPoints, int numPoi
 static unsigned long start_ms = 0;
 
 void GfxRenderer::clearScreen(const uint8_t color) const {
+  if (uiGrayPass_) return;
   start_ms = millis();
   if (_stripActive) {
     // Clear only the active band's scratch, not the shared framebuffer.
@@ -1745,6 +1753,7 @@ bool GfxRenderer::glyphIntersectsStrip(int x0, int y0, int x1, int y1) const {
 }
 
 void GfxRenderer::invertScreen() const {
+  if (uiGrayPass_) return;
   for (uint32_t i = 0; i < frameBufferSize; i++) {
     frameBuffer[i] = ~frameBuffer[i];
   }
@@ -1757,6 +1766,8 @@ HalDisplay::RefreshMode GfxRenderer::applyPromotedRefresh(const HalDisplay::Refr
 }
 
 void GfxRenderer::displayBuffer(HalDisplay::RefreshMode refreshMode) const {
+  if (uiGrayPass_) return;
+  displayCount_++;
   auto elapsed = millis() - start_ms;
   LOG_DBG("GFX", "Time = %lu ms from clearScreen to displayBuffer", elapsed);
   refreshMode = applyPromotedRefresh(refreshMode);
@@ -1764,6 +1775,8 @@ void GfxRenderer::displayBuffer(HalDisplay::RefreshMode refreshMode) const {
 }
 
 void GfxRenderer::displayBufferAsync(HalDisplay::RefreshMode refreshMode) const {
+  if (uiGrayPass_) return;
+  displayCount_++;
   refreshMode = applyPromotedRefresh(refreshMode);
   // The async path has no turn-off-screen hook, which the sunlight fading fix
   // relies on; keep those users on the blocking path.
@@ -1880,33 +1893,41 @@ std::vector<std::string> GfxRenderer::wrappedText(const int fontId, const char* 
       // Last available line: combine any word already started on this line with
       // the rest of the text, then let truncatedText fit it with an ellipsis.
       std::string lastContent = currentLine.empty() ? remaining : currentLine + " " + remaining;
+      std::replace(lastContent.begin(), lastContent.end(), '\n', ' ');
       lines.push_back(truncatedText(fontId, lastContent.c_str(), maxWidth, style));
       return lines;
     }
 
-    // Find next word
-    size_t spacePos = remaining.find(' ');
+    // Find the next word; a newline after it ends the line.
+    const size_t breakPos = remaining.find_first_of(" \n");
     std::string word;
+    bool hardBreak = false;
 
-    if (spacePos == std::string::npos) {
+    if (breakPos == std::string::npos) {
       word = remaining;
       remaining.clear();
     } else {
-      word = remaining.substr(0, spacePos);
-      remaining.erase(0, spacePos + 1);
+      word = remaining.substr(0, breakPos);
+      hardBreak = remaining[breakPos] == '\n';
+      remaining.erase(0, breakPos + 1);
     }
+    const char separator = hardBreak ? '\n' : ' ';
 
     std::string testLine = currentLine.empty() ? word : currentLine + " " + word;
 
     if (getTextWidth(fontId, testLine.c_str(), style) <= maxWidth) {
       currentLine = testLine;
+      if (hardBreak) {
+        lines.push_back(currentLine);
+        currentLine.clear();
+      }
     } else if (!currentLine.empty()) {
       lines.push_back(currentLine);
       currentLine.clear();
       // Requeue the word instead of deciding its fate here: the loop top then
       // applies the last-line ellipsis or the overlong split with the correct
       // remaining line budget.
-      remaining = remaining.empty() ? word : word + " " + remaining;
+      remaining = remaining.empty() && !hardBreak ? word : word + separator + remaining;
     } else {
       // Single word wider than the line — a no-space filename or a CJK run,
       // which has no space boundaries at all. Hard-split at the widest UTF-8
@@ -1921,7 +1942,7 @@ std::vector<std::string> GfxRenderer::wrappedText(const int fontId, const char* 
       }
       lines.push_back(word.substr(0, fit));
       const std::string rest = word.substr(fit);
-      if (!rest.empty()) remaining = remaining.empty() ? rest : rest + " " + remaining;
+      if (!rest.empty()) remaining = remaining.empty() && !hardBreak ? rest : rest + separator + remaining;
     }
   }
 
@@ -2542,6 +2563,43 @@ void GfxRenderer::restoreBwBuffer(const bool resyncPanelBaseline) {
 
   freeBwBufferChunks();
   LOG_DBG("GFX", "Restored and freed BW buffer chunks");
+}
+
+bool GfxRenderer::drawUiGrayscale(const std::function<void()>& draw) {
+  const auto caps = grayscaleCapabilities(HalDisplay::GrayscaleMode::Overlay);
+  if (caps.encoding != freeink::GrayscaleEncoding::OverlayMasks || caps.base != HalDisplay::GrayscaleBase::Separate ||
+      display.isInverted() ||
+      renderMode != BW || _stripActive || !frameBuffer) {
+    return false;
+  }
+  display.waitRefreshComplete();
+  if (!storeBwBuffer()) return false;
+
+  for (const bool msb : {false, true}) {
+    clearScreen(0x00);
+    setRenderMode(msb ? GRAYSCALE_MSB : GRAYSCALE_LSB);
+    uiGrayPass_ = true;
+    draw();
+    uiGrayPass_ = false;
+    // Keep gray only where the B/W frame is black (B/W bit 0); elsewhere a
+    // white fill or popup covered what the plane still holds.
+    for (size_t i = 0; i < bwBufferChunks.size(); i++) {
+      const size_t offset = i * BW_BUFFER_CHUNK_SIZE;
+      const size_t chunkSize = std::min(BW_BUFFER_CHUNK_SIZE, static_cast<size_t>(frameBufferSize - offset));
+      const uint8_t* bw = bwBufferChunks[i];
+      uint8_t* plane = frameBuffer + offset;
+      for (size_t j = 0; j < chunkSize; j++) plane[j] &= static_cast<uint8_t>(~bw[j]);
+    }
+    if (msb) {
+      copyGrayscaleMsbBuffers();
+    } else {
+      copyGrayscaleLsbBuffers();
+    }
+  }
+  displayGrayBuffer();
+  setRenderMode(BW);
+  restoreBwBuffer();
+  return true;
 }
 
 /**

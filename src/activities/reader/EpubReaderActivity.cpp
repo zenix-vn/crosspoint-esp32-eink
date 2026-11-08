@@ -23,6 +23,7 @@
 #include <iterator>
 #include <limits>
 
+#include "CollectionsStore.h"
 #include "../../util/BookmarkFile.h"
 #include "BookmarkEntry.h"
 #include "ChapterBuildGate.h"
@@ -202,6 +203,7 @@ void moveFinishedBookToReadFolder(const std::string& srcPath, const std::string&
   }
 
   RECENT_BOOKS.updatePath(srcPath, dstPath, oldCachePath, cacheMoved ? newCachePath : oldCachePath);
+  COLLECTIONS.updatePath(srcPath, dstPath);
   if (APP_STATE.openEpubPath == srcPath) {
     APP_STATE.openEpubPath = dstPath;
     APP_STATE.saveToFile();

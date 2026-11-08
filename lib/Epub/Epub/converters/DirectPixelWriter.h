@@ -7,6 +7,8 @@
 
 #include <cassert>
 
+#include "BlueNoise.h"
+
 // Direct framebuffer writer that eliminates per-pixel overhead from the image
 // rendering hot path.  Pre-computes orientation transform as linear coefficients
 // and caches render-mode state so the inner loop is: one multiply, one add,
@@ -158,10 +160,11 @@ struct DirectPixelWriter {
     switch (mode) {
       case GfxRenderer::BW:
         if (ditherBw) {
-          // 2x2 Bayer cell (0 2 / 3 1): dark gray inks 3 of 4 pixels, light gray 1 of 4.
-          static constexpr uint8_t BAYER[4] = {0, 2, 3, 1};
-          const uint8_t threshold = BAYER[((rowLogicalY & 1) << 1) | (logicalX & 1)];
-          state = pixelValue == 0 || (pixelValue == 1 && threshold < 3) || (pixelValue == 2 && threshold < 1);
+          // Blue-noise threshold: dark gray inks about 2 of 3 pixels, light gray 1 of 3,
+          // spread evenly instead of in a repeating cell.
+          const uint8_t noise = BLUE_NOISE[(rowLogicalY & (BLUE_NOISE_SIZE - 1)) * BLUE_NOISE_SIZE +
+                                           (logicalX & (BLUE_NOISE_SIZE - 1))];
+          state = pixelValue == 0 || pixelValue * 85 < noise;
         } else {
           state = pixelValue < 3;
         }

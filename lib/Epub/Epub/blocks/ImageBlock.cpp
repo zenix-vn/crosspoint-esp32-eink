@@ -12,6 +12,7 @@
 
 #include "Epub/converters/DirectPixelWriter.h"
 #include "Epub/converters/ImageDecoderFactory.h"
+#include "Epub/converters/PixelCache.h"
 
 // Cache file format:
 // - uint16_t width
@@ -45,6 +46,10 @@ bool readValidCacheHeader(HalFile& cacheFile, const int expectedWidth, const int
   if (cacheFile.read(&cachedWidth, 2) != 2 || cacheFile.read(&cachedHeight, 2) != 2) {
     return false;
   }
+  if ((cachedWidth & PixelCache::VERSION_FLAG) == 0) {
+    return false;
+  }
+  cachedWidth &= ~PixelCache::VERSION_FLAG;
 
   const int widthDiff = abs(cachedWidth - expectedWidth);
   const int heightDiff = abs(cachedHeight - expectedHeight);

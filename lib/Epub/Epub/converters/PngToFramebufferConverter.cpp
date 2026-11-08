@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <new>
 
@@ -44,6 +45,10 @@ struct PngContext {
 
   uint8_t* grayLineBuffer{nullptr};
   uint8_t* alphaLineBuffer{nullptr};
+  // Downscaling: per output column, the sum of the source rows' horizontal
+  // averages since the last emitted output row. Null = nearest-neighbor.
+  uint32_t* rowSum{nullptr};
+  uint32_t rowSumCount{0};
   uint32_t lastYieldMs{0};  // throttle state for yieldDuringDecode()
 };
 
@@ -212,6 +217,79 @@ void convertLineToGray(const uint8_t* pPixels, uint8_t* grayLine, int width, int
   }
 }
 
+// Box-filter downscale: average the source pixels each output pixel covers,
+// across columns here and across rows through ctx->rowSum, so thin lines and
+// small text in images thin out instead of breaking up.
+int emitAveragedRow(PngContext* ctx, PNGDRAW* pDraw, const int visibleSrcY) {
+  const int dstHeight = ctx->dstHeight;
+  const int visibleHeight = ctx->visibleHeight;
+  const int dstY = visibleSrcY * dstHeight / visibleHeight;
+  if (dstY >= dstHeight) return 1;
+
+  const uint32_t transparentColor = ctx->decoder ? ctx->decoder->getTransparentColor() : 0;
+  convertLineToGray(pDraw->pPixels, ctx->grayLineBuffer, ctx->srcWidth, pDraw->iPixelType, pDraw->iBpp,
+                    pDraw->pPalette, pDraw->iHasAlpha, transparentColor, ctx->alphaLineBuffer);
+
+  const int dstWidth = ctx->dstWidth;
+  const int visibleWidth = ctx->visibleWidth;
+  const auto spanStart = [ctx, dstWidth, visibleWidth](const int dstX) {
+    return ctx->cropLeft + static_cast<int>(static_cast<int64_t>(dstX) * visibleWidth / dstWidth);
+  };
+  for (int dstX = 0; dstX < dstWidth; dstX++) {
+    const int x0 = spanStart(dstX);
+    int x1 = spanStart(dstX + 1);
+    if (x1 <= x0) x1 = x0 + 1;
+    uint32_t sum = 0;
+    for (int x = x0; x < x1; x++) sum += ctx->grayLineBuffer[x];
+    ctx->rowSum[dstX] += (sum + (x1 - x0) / 2) / (x1 - x0);
+  }
+  ctx->rowSumCount++;
+
+  // Wait for the last source row that falls into this output row.
+  const bool lastRow = visibleSrcY + 1 >= visibleHeight || (visibleSrcY + 1) * dstHeight / visibleHeight != dstY;
+  if (!lastRow) return 1;
+
+  const uint32_t count = ctx->rowSumCount;
+  ctx->rowSumCount = 0;
+  ctx->lastDstY = dstY;
+  const int outY = ctx->config->y + dstY;
+  if (outY >= ctx->screenHeight) {
+    memset(ctx->rowSum, 0, sizeof(uint32_t) * dstWidth);
+    return 1;
+  }
+
+  DirectPixelWriter pw;
+  pw.init(*ctx->renderer);
+  pw.beginRow(outY);
+  bool caching = ctx->caching;
+  DirectCacheWriter cw;
+  if (caching) {
+    if (!ctx->cache.advanceTo(dstY)) {
+      caching = false;
+      ctx->caching = false;
+    } else {
+      cw.init(ctx->cache.buffer, ctx->cache.bytesPerRow, ctx->cache.bandRows, ctx->cache.originX);
+      cw.beginRow(outY, ctx->config->y + ctx->cache.bandStart);
+    }
+  }
+
+  const int outXBase = ctx->config->x;
+  const bool useDithering = ctx->config->useDithering;
+  for (int dstX = 0; dstX < dstWidth; dstX++) {
+    const uint8_t gray = static_cast<uint8_t>((ctx->rowSum[dstX] + count / 2) / count);
+    ctx->rowSum[dstX] = 0;
+    const int outX = outXBase + dstX;
+    if (outX >= ctx->screenWidth) continue;
+    // Transparency follows the last row's pixel at the span start.
+    const uint8_t alpha = ctx->alphaLineBuffer ? ctx->alphaLineBuffer[spanStart(dstX)] : 255;
+    if (alpha < 8 || alpha <= alphaThreshold4x4(outX, outY)) continue;
+    const uint8_t ditheredGray = useDithering ? applyDither4Level(gray, outX, outY) : gray >> 6;
+    pw.writePixel(outX, ditheredGray, ctx->alphaLineBuffer != nullptr);
+    if (caching) cw.writePixel(outX, ditheredGray);
+  }
+  return 1;
+}
+
 int pngDrawCallback(PNGDRAW* pDraw) {
   PngContext* ctx = reinterpret_cast<PngContext*>(pDraw->pUser);
   if (!ctx || !ctx->config || !ctx->renderer || !ctx->grayLineBuffer) return 0;
@@ -222,6 +300,8 @@ int pngDrawCallback(PNGDRAW* pDraw) {
   int srcWidth = ctx->srcWidth;
   if (srcY < ctx->cropTop || srcY >= ctx->cropTop + ctx->visibleHeight) return 1;
   const int visibleSrcY = srcY - ctx->cropTop;
+
+  if (ctx->rowSum) return emitAveragedRow(ctx, pDraw, visibleSrcY);
 
   // Map source rows with the exact output-height ratio. During downscaling,
   // multiple source rows can select the same output row; during upscaling, one
@@ -289,7 +369,7 @@ int pngDrawCallback(PNGDRAW* pDraw) {
 
           uint8_t ditheredGray;
           if (useDithering) {
-            ditheredGray = applyBayerDither4Level(gray, outX, outY);
+            ditheredGray = applyDither4Level(gray, outX, outY);
           } else {
             ditheredGray = gray >> 6;
           }
@@ -446,6 +526,14 @@ bool PngToFramebufferConverter::decodeToFramebuffer(const std::string& imagePath
   ctx.grayLineBuffer = lineBuffers.get();
   ctx.alphaLineBuffer = retainAlpha ? ctx.grayLineBuffer + grayBufSize : nullptr;
 
+  // Averaging needs 4 bytes per output column; without them, sample nearest.
+  std::unique_ptr<uint32_t[]> rowSum;
+  if (ctx.dstHeight < ctx.visibleHeight && ctx.dstWidth > 0) {
+    rowSum = makeUniqueNoThrow<uint32_t[]>(static_cast<size_t>(ctx.dstWidth));
+    if (rowSum) memset(rowSum.get(), 0, sizeof(uint32_t) * ctx.dstWidth);
+  }
+  ctx.rowSum = rowSum.get();
+
   // Stream the pixel cache to disk. PNGdec delivers source scanlines top to
   // bottom and we emit at most one (downscaled) output row per callback, so the
   // band only needs a single row. Streaming keeps the working set tiny, so
@@ -467,6 +555,7 @@ bool PngToFramebufferConverter::decodeToFramebuffer(const std::string& imagePath
 
   ctx.grayLineBuffer = nullptr;
   ctx.alphaLineBuffer = nullptr;
+  ctx.rowSum = nullptr;
 
   if (rc != PNG_SUCCESS) {
     LOG_ERR("PNG", "Decode failed: %d", rc);

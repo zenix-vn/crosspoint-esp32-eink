@@ -23,6 +23,11 @@ class ReleaseJsonParser {
   const char* getTagName() const;
   const char* getFirmwareUrl() const;
   size_t getFirmwareSize() const;
+  // Release notes ("body"), truncated to fit; empty when the release has none.
+  const char* getBody() const;
+  // Lowercase hex SHA-256 of the firmware asset, from "sha256" or a
+  // "digest": "sha256:<hex>" field; empty when the feed gives none.
+  const char* getFirmwareSha256() const;
 
  private:
   enum class Position : uint8_t {
@@ -34,10 +39,13 @@ class ReleaseJsonParser {
   enum class LastKey : uint8_t {
     NONE,
     TAG_NAME,
+    BODY,
     ASSETS,
     ASSET_NAME,
     ASSET_URL,
     ASSET_SIZE,
+    ASSET_SHA256,
+    ASSET_DIGEST,
   };
 
   static void sOnKey(void* ctx, const char* key, size_t len);
@@ -60,7 +68,9 @@ class ReleaseJsonParser {
   uint8_t assetDepth;
 
   char tagName[32];
+  char body[600];
   char firmwareUrl[512];
+  char firmwareSha256[65];
   size_t firmwareSize;
   bool tagFound;
   bool firmwareFound;
@@ -68,6 +78,7 @@ class ReleaseJsonParser {
   char currentAssetName[48];
   char currentAssetUrl[512];
   size_t currentAssetSize;
+  char currentAssetSha256[65];
 
   char firmwareAssetName[48];
 };

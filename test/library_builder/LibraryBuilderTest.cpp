@@ -127,6 +127,66 @@ TEST_F(LibraryBuilderTest, XtcTitleAndAuthorComeFromTheFile) {
   EXPECT_TRUE(sawXtch);
 }
 
+TEST_F(LibraryBuilderTest, SubjectsAreStoredAndSurviveMetadataReuse) {
+  bookMetadata["/a.epub"].subjects = "Fantasy, Adventure";
+  initial();
+
+  const auto subjectsOf = [](const char* wanted) {
+    LibraryIndexFile index;
+    EXPECT_TRUE(index.open(INDEX));
+    for (uint16_t ordinal = 0; ordinal < index.header().bookCount; ordinal++) {
+      ClixRecord record{};
+      std::string path;
+      std::string subjects;
+      if (!index.readRecord(ordinal, record) || !index.readPath(record, path) || path != wanted) continue;
+      EXPECT_TRUE(index.readSubjects(record, subjects));
+      return subjects;
+    }
+    ADD_FAILURE() << wanted << " not indexed";
+    return std::string();
+  };
+  EXPECT_EQ(subjectsOf("/a.epub"), "Fantasy, Adventure");
+  EXPECT_EQ(subjectsOf("/b.epub"), "");
+
+  fake::parses = 0;
+  ASSERT_TRUE(buildLibraryIndex("/", stats, true));
+  EXPECT_EQ(fake::parses, 0u);
+  EXPECT_EQ(subjectsOf("/a.epub"), "Fantasy, Adventure");
+}
+
+TEST_F(LibraryBuilderTest, SeriesAndPositionAreStoredAndSurviveMetadataReuse) {
+  bookMetadata["/a.epub"].series = "Earthsea";
+  bookMetadata["/a.epub"].seriesIndex = 2.5f;
+  initial();
+
+  const auto check = [] {
+    LibraryIndexFile index;
+    ASSERT_TRUE(index.open(INDEX));
+    for (uint16_t ordinal = 0; ordinal < index.header().bookCount; ordinal++) {
+      ClixRecord record{};
+      std::string path;
+      std::string series;
+      float position = 0;
+      ASSERT_TRUE(index.readRecord(ordinal, record));
+      ASSERT_TRUE(index.readPath(record, path));
+      ASSERT_TRUE(index.readSeries(record, series, position));
+      if (path == "/a.epub") {
+        EXPECT_EQ(series, "Earthsea");
+        EXPECT_FLOAT_EQ(position, 2.5f);
+      } else {
+        EXPECT_EQ(series, "");
+        EXPECT_FLOAT_EQ(position, -1.0f);
+      }
+    }
+  };
+  check();
+
+  fake::parses = 0;
+  ASSERT_TRUE(buildLibraryIndex("/", stats, true));
+  EXPECT_EQ(fake::parses, 0u);
+  check();
+}
+
 TEST_F(LibraryBuilderTest, UnchangedRebuildReusesMetadataAndDoesNotReplaceIndex) {
   initial();
   const auto old = fake::files[INDEX]->bytes;

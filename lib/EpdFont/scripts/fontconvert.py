@@ -20,6 +20,8 @@ parser.add_argument("size", type=int, help="font size to use.")
 parser.add_argument("fontstack", action="store", nargs='+', help="list of font files, ordered by descending priority.")
 parser.add_argument("--2bit", dest="is2Bit", action="store_true", help="generate 2-bit greyscale bitmap instead of 1-bit black and white.")
 parser.add_argument("--additional-intervals", dest="additional_intervals", action="append", help="Additional code point intervals to export as min,max. This argument can be repeated.")
+parser.add_argument("--intervals-file", dest="intervals_file", action="append", help="File of additional code point intervals, one min,max per line (# starts a comment). For sets too large for the command line, such as a CJK subset. Can be repeated.")
+parser.add_argument("--basic-intervals-only", dest="basic_intervals_only", action="store_true", help="Replace the default Latin/Cyrillic/symbol set with ASCII and U+FFFD, so a font of added intervals (a CJK subset) carries little else.")
 parser.add_argument("--compress", dest="compress", action="store_true", help="Compress glyph bitmaps using DEFLATE with group-based compression.")
 parser.add_argument("--zopfli", dest="zopfli", action="store_true", help="Use Zopfli for the DEFLATE backend instead of zlib. Produces standard raw-DEFLATE streams (decoded unchanged by the on-device uzlib inflater), typically a few percent smaller than zlib -9, at the cost of much slower compression. Requires --compress and the 'zopfli' package.")
 parser.add_argument("--force-autohint", dest="force_autohint", action="store_true", help="Force FreeType auto-hinter instead of native font hinting. Improves stem width consistency for fonts with weak or no native TrueType hints.")
@@ -140,9 +142,18 @@ intervals = [
     (0xFFFD, 0xFFFD),
 ]
 
+if args.basic_intervals_only:
+    intervals = [(0x0020, 0x007E), (0xFFFD, 0xFFFD)]
+
 add_ints = []
 if args.additional_intervals:
     add_ints = [tuple([int(n, base=0) for n in i.split(",")]) for i in args.additional_intervals]
+for path in args.intervals_file or []:
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.split("#", 1)[0].strip()
+            if line:
+                add_ints.append(tuple(int(n, base=0) for n in line.split(",")))
 
 def norm_floor(val):
     return int(math.floor(val / (1 << 6)))

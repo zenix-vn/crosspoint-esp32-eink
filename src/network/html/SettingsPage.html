@@ -41,6 +41,17 @@
   <div id="wifi-container"></div>
   <div id="opds-container"></div>
 
+  <div class="card" id="backup-card">
+    <h2>Backup &amp; Restore</h2>
+    <p>Settings, recent books, favorites, collections, reading stats and hidden recommendations, in one file.
+      Wi-Fi, OPDS and KOReader passwords are not included.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn-small btn-add" type="button" onclick="downloadBackup()">Download backup</button>
+      <button class="btn-small btn-save-server" type="button" onclick="document.getElementById('restoreFile').click()">Restore from file…</button>
+      <input type="file" id="restoreFile" accept=".json,application/json" style="display:none" onchange="restoreBackup(this)" />
+    </div>
+  </div>
+
   </main>
 <!--#include file="shared/Footer.html.inc" -->
 
@@ -600,6 +611,32 @@
       await loadOpdsServers();
     } catch (e) {
       showWebToast('Error: ' + e.message, true);
+    }
+  }
+
+  function downloadBackup() {
+    // A plain navigation lets the browser save the attachment itself.
+    window.location.href = '/api/backup';
+  }
+
+  async function restoreBackup(input) {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    if (!await showWebConfirm('Restore "' + file.name + '"? Current settings, recents, collections and stats are replaced, then the reader restarts.')) return;
+    try {
+      const text = await file.text();
+      JSON.parse(text);  // fail fast on a wrong file before sending it
+      const resp = await fetch('/api/restore', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: text
+      });
+      if (!resp.ok) throw new Error(await resp.text());
+      const result = await resp.json();
+      showWebToast('Restored ' + result.restored + ' files. The reader is restarting…', false);
+    } catch (e) {
+      showWebToast('Restore failed: ' + e.message, true);
     }
   }
 

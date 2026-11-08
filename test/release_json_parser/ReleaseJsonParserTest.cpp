@@ -650,3 +650,42 @@ TEST(ReleaseJsonParser, ChunkedRealisticEveryBoundary) {
     EXPECT_EQ(p.getFirmwareSize(), 9999u) << "split=" << split;
   }
 }
+
+TEST(ReleaseJsonParser, NotesAndSha256FromSelfHostedFeed) {
+  const char* json =
+      R"({"tag_name":"2.0.2-zenix","body":"Kênh beta\nSửa lỗi","assets":[{"name":"firmware.bin",)"
+      R"("browser_download_url":"https://example.com/fw","size":10,)"
+      R"("sha256":"ABCDEF0123456789abcdef0123456789ABCDEF0123456789abcdef0123456789"}]})";
+  ReleaseJsonParser p;
+  p.feed(json, strlen(json));
+  EXPECT_STREQ(p.getBody(), "Kênh beta\nSửa lỗi");
+  EXPECT_STREQ(p.getFirmwareSha256(), "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789");
+}
+
+TEST(ReleaseJsonParser, GithubDigestAndMalformedChecksums) {
+  const char* github =
+      R"({"tag_name":"v2.0","assets":[{"name":"firmware.bin","browser_download_url":"u","size":1,)"
+      R"("digest":"sha256:0000000000000000000000000000000000000000000000000000000000000001"}]})";
+  ReleaseJsonParser p;
+  p.feed(github, strlen(github));
+  EXPECT_STREQ(p.getFirmwareSha256(), "0000000000000000000000000000000000000000000000000000000000000001");
+
+  // A checksum that is not 64 hex digits reads as "none", not as a certain mismatch.
+  const char* bad = R"({"tag_name":"v2.0","assets":[{"name":"firmware.bin","browser_download_url":"u","sha256":"xyz"}]})";
+  ReleaseJsonParser q;
+  q.feed(bad, strlen(bad));
+  EXPECT_TRUE(q.foundFirmware());
+  EXPECT_STREQ(q.getFirmwareSha256(), "");
+}
+
+TEST(ReleaseJsonParser, LongNotesAreCutOnACodePoint) {
+  std::string notes(700, 'a');
+  notes.replace(597, 2, "\xE1\xBB");  // first two bytes of a 3-byte letter right at the limit
+  notes[599] = '\xA1';
+  const std::string json = R"({"tag_name":"v1","body":")" + notes + R"("})";
+  ReleaseJsonParser p;
+  p.feed(json.data(), json.size());
+  const std::string body = p.getBody();
+  EXPECT_LE(body.size(), 599u);
+  EXPECT_EQ(body.find("\xE1\xBB"), std::string::npos);
+}

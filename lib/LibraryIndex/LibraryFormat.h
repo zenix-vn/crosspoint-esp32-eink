@@ -12,7 +12,8 @@
 //   folders       F variable-length records; the id of a folder IS its ordinal
 //   records       N x exactly 128 bytes, in folded-title order
 //   permutations  authorOrder[N] then arrivalOrder[N], both u16
-//   names         path hash, filename, display author, title, and source author blobs
+//   names         path hash, filename, display author, title, source author, subjects,
+//                 series, and series index blobs
 //
 // The fixed 128-byte record stride is the load-bearing choice: record k lives at
 // recordStart + 128k, so paging is O(1) in every sort order with no offset
@@ -32,8 +33,11 @@ inline constexpr uint8_t CLIX_FORMAT_VERSION = 2;
 
 // Bump when the fold or a permutation's sort key changes.
 // Forces fold and ranks to be rebuilt while firstSeen values are preserved, so
-// arrival history survives.
-inline constexpr uint8_t CLIX_FOLD_VERSION = 4;
+// arrival history survives. Also bumped when a new name blob field is added
+// (5: subjects and series; 6: rebuild indexes that development builds wrote
+// as version 5 before those fields existed), since a stale fold also forces
+// metadata to be re-extracted.
+inline constexpr uint8_t CLIX_FOLD_VERSION = 6;
 
 inline constexpr uint32_t CLIX_ALIGN = 512;
 inline constexpr size_t CLIX_FOLD_BYTES = 96;

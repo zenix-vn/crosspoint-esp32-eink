@@ -54,6 +54,9 @@ class ActivityManager {
   TaskHandle_t renderTaskHandle = nullptr;
   static void renderTaskTrampoline(void* param);
   [[noreturn]] virtual void renderTaskLoop();
+  // Repaints the frame render() just showed into the gray planes when the UI
+  // anti-aliasing setting covers the current activity.
+  void drawGrayText(RenderLock& lock, uint32_t displayCountBefore);
 
   // Set by requestUpdateAndWait(); read and cleared by the render task after render completes.
   // Note: only one waiting task is supported at a time
@@ -91,6 +94,8 @@ class ActivityManager {
   void goToSettings(SettingsSection openSection = SettingsSection::End);
   void goToFileBrowser(std::string path = {});
   void goToLibrary();
+  // The swipe-down control center (frontlight, quick toggles) as an overlay.
+  void goToControlCenter();
   void goToBrowser();
   void goToPlugins(bool showOpds);
   void goToReader(std::string path, bool allowFastInitialRefresh = false);

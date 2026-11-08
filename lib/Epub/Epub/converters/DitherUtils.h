@@ -2,21 +2,15 @@
 
 #include <stdint.h>
 
-// 4x4 Bayer matrix for ordered dithering
-inline const uint8_t bayer4x4[4][4] = {
-    {0, 8, 2, 10},
-    {12, 4, 14, 6},
-    {3, 11, 1, 9},
-    {15, 7, 13, 5},
-};
+#include "BlueNoise.h"
 
-// Apply Bayer dithering and quantize to 4 levels (0-3)
-// Stateless - works correctly with any pixel processing order
-inline uint8_t applyBayerDither4Level(uint8_t gray, int x, int y) {
-  int bayer = bayer4x4[y & 3][x & 3];
-  int dither = (bayer - 8) * 5;  // Scale to +/-40 (half of quantization step 85)
-
-  int adjusted = gray + dither;
+// Dither to 4 levels (0-3) with a blue-noise threshold: evenly spread dots and
+// no repeating grid, unlike a small Bayer matrix. Stateless, so it works with
+// any pixel processing order (block decoders, pixel caches).
+inline uint8_t applyDither4Level(uint8_t gray, int x, int y) {
+  const int noise = BLUE_NOISE[(y & (BLUE_NOISE_SIZE - 1)) * BLUE_NOISE_SIZE + (x & (BLUE_NOISE_SIZE - 1))];
+  // Offset within +/-42, half of the quantization step 85.
+  int adjusted = gray + (noise - 128) * 85 / 256;
   if (adjusted < 0) adjusted = 0;
   if (adjusted > 255) adjusted = 255;
 

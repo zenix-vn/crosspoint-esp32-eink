@@ -43,13 +43,16 @@ class LibraryListActivity final : public UiTabListActivity {
   void activateIndex(int index) override;
   void onRowLongPress(int index) override;
 #if FREEINK_CAP_TOUCH
-  bool canSwipeDelete(int index) const override { return !groupsCollapsed && index >= 0 && index < listCount(); }
+  bool canSwipeDelete(int index) const override {
+    return !groupsCollapsed && !pickerShown() && index >= 0 && index < listCount();
+  }
   void swipeDelete(int index) override;
 #endif
   int tabCount() const override;
   int activeTab() const override;
   const char* tabLabel(int index) const override;
   freeink::ui::TabIndicator tabIndicator(int index) const override;
+  freeink::ui::BitmapRef tabIcon(int index) const override;
   void onTabAction(int index) override;
   void stepTab(int direction) override;
   bool handleCustomInput() override;
@@ -193,4 +196,65 @@ class LibraryListActivity final : public UiTabListActivity {
   // Row options modal (Recent long-press menu); owned here so it outlives the
   // touch event that opened it.
   OptionPopup optionPopup;
+
+  // --- Folders, Genres, Series and Collections tabs -------------------------
+  // Both tabs open on a picker (the folders that hold books / the user's
+  // collections); choosing one scopes the title-sorted list to its books
+  // through the same filtered rows a search uses, so a search inside a scope
+  // narrows it further.
+  struct FolderEntry {
+    std::string path;  // "/" for the card root
+    uint16_t books;
+  };
+  bool pickerShown() const;
+  bool filterActive() const {
+    return !query.empty() || !scopeFolder.empty() || !scopeGenre.empty() || !scopeSeries.empty() ||
+           scopeCollection >= 0;
+  }
+  int pickerCount() const;
+  void loadFolders();
+  void loadGenres();
+  void loadSeries();
+  void choosePicker(int entry);
+  void clearScope();
+  void buildPickerRows(UiScreen& screen);
+  bool resolveEntry(int entry, std::string& path, std::string& title);
+  // Long-press menu for book rows in a scope or search: open, collections, delete.
+  void showBookOptions(int entry);
+  void showAddToCollection(const std::string& path);
+  void promptNewCollection(const std::string& addPath);
+  void showCollectionOptions(int collection);
+
+  std::vector<FolderEntry> folders;
+  bool foldersLoaded = false;
+  std::string scopeFolder;  // empty = no folder scope
+
+  // Genres tab: one entry per distinct dc:subject term, most books first.
+  struct GenreEntry {
+    std::string folded;  // the matching key
+    std::string shown;   // first spelling met, for display
+    uint16_t books;
+  };
+  std::vector<GenreEntry> genres;
+  bool genresLoaded = false;
+  std::string scopeGenre;  // folded term; empty = no genre scope
+  std::string scopeGenreShown;
+
+  // Series tab: one entry per series name, alphabetical; a chosen series lists
+  // its volumes in reading order.
+  struct SeriesEntry {
+    std::string folded;
+    std::string shown;
+    uint16_t books;
+  };
+  std::vector<SeriesEntry> seriesList;
+  bool seriesLoaded = false;
+  std::string scopeSeries;  // folded name; empty = no series scope
+  std::string scopeSeriesShown;
+  int scopeCollection = -1;
+  int pickerReturnEntry = 0;  // picker row to land on when leaving a scope
+  // "Library · <tab>": the icon-only tab strip is named in the header.
+  std::string headerTabTitle;
+  // A side page button is down: it pages the list and never steps rows.
+  bool sidePaging = false;
 };

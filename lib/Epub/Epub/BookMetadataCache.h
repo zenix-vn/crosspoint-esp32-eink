@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <deque>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -14,6 +15,10 @@ class BookMetadataCache {
   struct BookMetadata {
     std::string title;
     std::string author;
+    // Not persisted in book.bin; only filled by metadata-only parses.
+    std::string subjects;
+    std::string series;
+    std::optional<float> seriesIndex;
     std::string language;
     std::string coverItemHref;
     std::string textReferenceHref;

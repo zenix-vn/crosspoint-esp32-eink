@@ -99,10 +99,9 @@ void BmpViewerActivity::loadSiblingImages() {
   }
 }
 
-bool BmpViewerActivity::canSetSleepCover() const {
-  return FsHelpers::hasBmpExtension(filePath) || FsHelpers::hasJpgExtension(filePath) ||
-         (overlaySleepMode() && FsHelpers::hasPngExtension(filePath));
-}
+// The custom image sleep screens are no longer offered (only Dark, Light and
+// Today), so an image cannot become the sleep cover.
+bool BmpViewerActivity::canSetSleepCover() const { return false; }
 
 bool BmpViewerActivity::renderImage() {
   const bool jpeg = FsHelpers::hasJpgExtension(filePath);

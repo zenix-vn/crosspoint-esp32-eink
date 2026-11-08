@@ -33,6 +33,9 @@ class UiTabListActivity : public UiListActivity {
   virtual int activeTab() const = 0;
   virtual const char* tabLabel(int index) const = 0;
   virtual freeink::ui::TabIndicator tabIndicator(int) const { return freeink::ui::TabIndicator::None; }
+  // A tab with an icon draws the icon alone; the screen names the active tab
+  // elsewhere (its header), so many tabs still fit one strip.
+  virtual freeink::ui::BitmapRef tabIcon(int) const { return {}; }
   // Touch tap on a tab pill (bounds already checked).
   virtual void onTabAction(int index) = 0;
   // Advance the active tab by direction (continuous-hold navigation; also what

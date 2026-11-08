@@ -210,7 +210,7 @@ int jpegDrawCallback(JPEGDRAW* pDraw) {
         uint8_t gray = row[dstX - blockX];
         uint8_t dithered;
         if (useDithering) {
-          dithered = applyBayerDither4Level(gray, outX, outY);
+          dithered = applyDither4Level(gray, outX, outY);
         } else {
           dithered = gray / 85;
           if (dithered > 3) dithered = 3;
@@ -269,7 +269,7 @@ int jpegDrawCallback(JPEGDRAW* pDraw) {
 
         uint8_t dithered;
         if (useDithering) {
-          dithered = applyBayerDither4Level(gray, outX, outY);
+          dithered = applyDither4Level(gray, outX, outY);
         } else {
           dithered = gray / 85;
           if (dithered > 3) dithered = 3;
@@ -292,7 +292,7 @@ int jpegDrawCallback(JPEGDRAW* pDraw) {
 
         uint8_t dithered;
         if (useDithering) {
-          dithered = applyBayerDither4Level(gray, outX, outY);
+          dithered = applyDither4Level(gray, outX, outY);
         } else {
           dithered = gray / 85;
           if (dithered > 3) dithered = 3;
@@ -318,7 +318,7 @@ int jpegDrawCallback(JPEGDRAW* pDraw) {
 
         uint8_t dithered;
         if (useDithering) {
-          dithered = applyBayerDither4Level(gray, outX, outY);
+          dithered = applyDither4Level(gray, outX, outY);
         } else {
           dithered = gray / 85;
           if (dithered > 3) dithered = 3;
@@ -330,28 +330,41 @@ int jpegDrawCallback(JPEGDRAW* pDraw) {
     return 1;
   }
 
-  // === Nearest-neighbor (downscale: fineScale < 1.0) ===
+  // === Box average (downscale: fineScale < 1.0) ===
+  // Each output pixel averages the source pixels it covers (1-2 per axis, as
+  // JPEGDEC's 1/2-1/8 prescale keeps fineScale above 0.5), so thin lines and
+  // text in images thin out instead of breaking up. A footprint that crosses
+  // into the next block uses the rows/columns this block has.
   for (int dstY = dstYStart; dstY < dstYEnd; dstY++) {
     const int outY = cfgY + dstY;
     pw.beginRow(outY);
     if (caching) cw.beginRow(outY, cacheOriginY);
-    const int32_t srcFyFP = dstY * invScaleFPY;
-    int ly = (srcFyFP >> FP_SHIFT) - blockY;
-    if (ly < 0) ly = 0;
-    if (ly >= blockH) ly = blockH - 1;
-    const uint8_t* row = &pixels[ly * stride];
+    int ly0 = ((dstY * invScaleFPY) >> FP_SHIFT) - blockY;
+    int ly1 = (((dstY + 1) * invScaleFPY) >> FP_SHIFT) - blockY;  // exclusive
+    if (ly0 < 0) ly0 = 0;
+    if (ly0 >= blockH) ly0 = blockH - 1;
+    if (ly1 > blockH) ly1 = blockH;
+    if (ly1 <= ly0) ly1 = ly0 + 1;
 
     for (int dstX = dstXStart; dstX < dstXEnd; dstX++) {
       const int outX = cfgX + dstX;
-      const int32_t srcFxFP = dstX * invScaleFPX;
-      int lx = (srcFxFP >> FP_SHIFT) - blockX;
-      if (lx < 0) lx = 0;
-      if (lx >= validW) lx = validW - 1;
-      uint8_t gray = row[lx];
+      int lx0 = ((dstX * invScaleFPX) >> FP_SHIFT) - blockX;
+      int lx1 = (((dstX + 1) * invScaleFPX) >> FP_SHIFT) - blockX;  // exclusive
+      if (lx0 < 0) lx0 = 0;
+      if (lx0 >= validW) lx0 = validW - 1;
+      if (lx1 > validW) lx1 = validW;
+      if (lx1 <= lx0) lx1 = lx0 + 1;
+      uint32_t sum = 0;
+      for (int ly = ly0; ly < ly1; ly++) {
+        const uint8_t* row = &pixels[ly * stride];
+        for (int lx = lx0; lx < lx1; lx++) sum += row[lx];
+      }
+      const int count = (ly1 - ly0) * (lx1 - lx0);
+      uint8_t gray = static_cast<uint8_t>((sum + count / 2) / count);
 
       uint8_t dithered;
       if (useDithering) {
-        dithered = applyBayerDither4Level(gray, outX, outY);
+        dithered = applyDither4Level(gray, outX, outY);
       } else {
         dithered = gray / 85;
         if (dithered > 3) dithered = 3;

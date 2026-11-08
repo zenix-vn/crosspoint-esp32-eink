@@ -267,6 +267,11 @@ class BaseTheme {
   // drawHeader). The label strings point at internal static buffers refreshed
   // per call (headers draw on the single render task).
   static void applyHeaderStatus(const GfxRenderer& renderer, freeink::ui::HeaderProps& props);
+  // When set, shown in the header clock's slot instead of the time (the
+  // Desktop home puts the device name there under its own large clock).
+  inline static const char* headerStatusOverride = nullptr;
+  // When set, replaces the battery percentage label (e.g. with days left).
+  inline static const char* headerBatteryLabelOverride = nullptr;
   // The header band every screen draws in: the caller's full-width rect inset
   // by the board's side insets, its top edge lowered by the board's
   // headerOffsetY (bottom edge fixed, so content below keeps its boundary).

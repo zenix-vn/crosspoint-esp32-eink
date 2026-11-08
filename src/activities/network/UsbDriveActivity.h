@@ -14,6 +14,7 @@ class UsbDriveActivity final : public Activity, private UiAppHost {
   void onExit() override;
   void loop() override;
   void render(RenderLock&&) override;
+  GrayText grayText() const override { return GrayText::Never; }
   bool preventAutoSleep() override { return state == State::Connected || (!startFailed && state == State::IoError); }
   bool requiresExclusiveStorageLoop() const override { return true; }
 

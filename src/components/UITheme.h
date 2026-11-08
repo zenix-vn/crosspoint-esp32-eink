@@ -44,6 +44,8 @@ class UITheme {
   static bool supportsCoverGrid();
   static bool hasCoverGridHome();
   static void drawCoverGridHome(CoverGridHomeUi& home);
+  // Desktop home: clock, current book and an app dock over Lyra screens.
+  static bool hasDesktopHome();
   void reload();
   void setTheme(CrossPointSettings::UI_THEME type);
   static std::string getCoverThumbPath(std::string coverBmpPath, int coverHeight);

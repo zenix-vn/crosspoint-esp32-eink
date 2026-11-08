@@ -29,12 +29,16 @@
 #include "OtaUpdateActivity.h"
 #include "SdCardFontSystem.h"
 #include "SdFirmwareUpdateActivity.h"
+#include "HiddenRecommendationsActivity.h"
 #include "SettingsList.h"
 #include "SilentRestart.h"
 #include "StatusBarSettingsActivity.h"
 #include "TextSettingsActivity.h"
+#include "activities/home/FileBrowserActivity.h"
 #include "activities/network/WifiSelectionActivity.h"
+#include "activities/util/KeyboardEntryActivity.h"
 #include "activities/util/IntervalSelectionActivity.h"
+#include "activities/vocab/VocabDeckSelectActivity.h"
 #include "components/UITheme.h"
 #include "components/UIThemeTokens.h"
 #include "components/UiAppHelpers.h"
@@ -55,6 +59,11 @@ bool showOnDevice(const SettingInfo& setting) {
   if (setting.valuePtr == &CrossPointSettings::fadingFix && (BoardConfig::isX4Pro() || BoardConfig::isX4Classic())) {
     return false;
   }
+  // Only for the cover and custom-image sleep screens, which are no longer offered.
+  if (setting.valuePtr == &CrossPointSettings::sleepScreenCoverMode ||
+      setting.valuePtr == &CrossPointSettings::sleepScreenCoverFilter) {
+    return false;
+  }
   // Merged into the Text Settings screen.
   if (setting.category == StrId::STR_CAT_READER && setting.inTextSettings) return false;
   if (setting.valuePtr == &CrossPointSettings::pwrBtnFootnoteBack &&
@@ -73,6 +82,10 @@ SettingsSection sectionFor(const SettingInfo& setting) {
     return SettingsSection::Library;
   }
   if (setting.valuePtr == &CrossPointSettings::sleepTimeoutMinutes) return SettingsSection::Display;
+  if (setting.valuePtr == &CrossPointSettings::vocabNewPerDay ||
+      setting.valuePtr == &CrossPointSettings::vocabLanguage) {
+    return SettingsSection::Vocabulary;
+  }
   if (setting.category == StrId::STR_CAT_DISPLAY) return SettingsSection::Display;
   if (setting.category == StrId::STR_CAT_READER) return SettingsSection::Reader;
   if (setting.category == StrId::STR_CAT_CONTROLS) return SettingsSection::Controls;
@@ -81,7 +94,7 @@ SettingsSection sectionFor(const SettingInfo& setting) {
 }
 
 // Device-only action rows added per section, beyond the shared list.
-constexpr size_t EXTRA_ROWS_PER_SECTION = 6;
+constexpr size_t EXTRA_ROWS_PER_SECTION = 7;
 }  // namespace
 
 void SettingsActivity::rebuildSettings() {
@@ -109,7 +122,11 @@ void SettingsActivity::rebuildSettings() {
   // Language leads so a user stuck in an unfamiliar language finds it first.
   addAction(SettingsSection::General, StrId::STR_LANGUAGE, SettingAction::Language);
   addAction(SettingsSection::General, StrId::STR_KEYBOARD_LAYOUTS, SettingAction::KeyboardLayouts);
+  addAction(SettingsSection::General, StrId::STR_DEVICE_NAME, SettingAction::DeviceName);
+  addAction(SettingsSection::General, StrId::STR_POWER_OFF_TEXT, SettingAction::PowerOffText);
+  addAction(SettingsSection::General, StrId::STR_POWER_OFF_IMAGE, SettingAction::PowerOffImage);
   addAction(SettingsSection::Reader, StrId::STR_TEXT_SETTINGS, SettingAction::TextSettings);
+  addAction(SettingsSection::Vocabulary, StrId::STR_VOCAB_CHOOSE_DECK, SettingAction::VocabDeck);
   addAction(SettingsSection::Reader, StrId::STR_MANAGE_FONTS, SettingAction::DownloadFonts);
   if (BoardConfig::hasHomeKey()) {
     addAction(SettingsSection::Controls, StrId::STR_HOME_BUTTON, SettingAction::HomeButton);
@@ -129,6 +146,7 @@ void SettingsActivity::rebuildSettings() {
   }
   addAction(SettingsSection::Reader, StrId::STR_CUSTOMISE_STATUS_BAR, SettingAction::CustomiseStatusBar);
   addAction(SettingsSection::Reader, StrId::STR_CLEAR_READING_CACHE, SettingAction::ClearCache);
+  addAction(SettingsSection::General, StrId::STR_HIDDEN_RECOMMENDATIONS, SettingAction::HiddenRecommendations);
 
   addAction(SettingsSection::Network, StrId::STR_WIFI_NETWORKS, SettingAction::Network);
   if (bleturner::status().compiledIn) {
@@ -352,6 +370,49 @@ void SettingsActivity::toggleSelectedSetting() {
       case SettingAction::SdFirmwareUpdate:
         startActivityForResult(std::make_unique<SdFirmwareUpdateActivity>(renderer, mappedInput), resultHandler);
         break;
+      case SettingAction::HiddenRecommendations:
+        startActivityForResult(std::make_unique<HiddenRecommendationsActivity>(renderer, mappedInput),
+                               resultHandler);
+        break;
+      case SettingAction::DeviceName:
+        startActivityForResult(
+            std::make_unique<KeyboardEntryActivity>(renderer, mappedInput, tr(STR_DEVICE_NAME),
+                                                    std::string(SETTINGS.deviceName), sizeof(SETTINGS.deviceName) - 1,
+                                                    InputType::Text),
+            [this](const ActivityResult& result) {
+              if (result.isCancelled) return;
+              const auto& kb = std::get<KeyboardResult>(result.data);
+              snprintf(SETTINGS.deviceName, sizeof(SETTINGS.deviceName), "%s", kb.text.c_str());
+              SETTINGS.saveToFile();
+              requestUpdate();
+            });
+        break;
+      case SettingAction::PowerOffText:
+        startActivityForResult(
+            std::make_unique<KeyboardEntryActivity>(renderer, mappedInput, tr(STR_POWER_OFF_TEXT),
+                                                    std::string(SETTINGS.powerOffText),
+                                                    sizeof(SETTINGS.powerOffText) - 1, InputType::Text),
+            [this](const ActivityResult& result) {
+              if (result.isCancelled) return;
+              const auto& kb = std::get<KeyboardResult>(result.data);
+              snprintf(SETTINGS.powerOffText, sizeof(SETTINGS.powerOffText), "%s", kb.text.c_str());
+              SETTINGS.saveToFile();
+              requestUpdate();
+            });
+        break;
+      case SettingAction::PowerOffImage:
+        startActivityForResult(
+            std::make_unique<FileBrowserActivity>(renderer, mappedInput, "/", FileBrowserActivity::Mode::PickBmp),
+            [this](const ActivityResult& result) {
+              if (result.isCancelled) return;
+              const auto& path = std::get<FilePathResult>(result.data).path;
+              // Too long to store: keep the old choice rather than a truncated path.
+              if (path.size() >= sizeof(SETTINGS.powerOffImage)) return;
+              snprintf(SETTINGS.powerOffImage, sizeof(SETTINGS.powerOffImage), "%s", path.c_str());
+              SETTINGS.saveToFile();
+              requestUpdate();
+            });
+        break;
       case SettingAction::DownloadFonts:
         startActivityForResult(std::make_unique<FontDownloadActivity>(renderer, mappedInput),
                                [this](const ActivityResult&) {
@@ -366,6 +427,10 @@ void SettingsActivity::toggleSelectedSetting() {
                                  // TextSettingsActivity saves on each change; no save needed here.
                                  rebuildSettings();
                                });
+        break;
+      case SettingAction::VocabDeck:
+        startActivityForResult(std::make_unique<VocabDeckSelectActivity>(renderer, mappedInput),
+                               [](const ActivityResult&) {});
         break;
       case SettingAction::Language:
         // Row labels are translated once in rebuildRowItems() and don't
@@ -464,6 +529,14 @@ void SettingsActivity::openSleepTimeoutPicker() {
 
 std::string SettingsActivity::settingValueText(const SettingInfo& setting) {
   if (setting.action == SettingAction::HomeButton) return tr(STR_CONFIGURE);
+  if (setting.action == SettingAction::DeviceName) {
+    return SETTINGS.deviceName[0] ? SETTINGS.deviceName : tr(STR_DEVICE_NAME_DEFAULT);
+  }
+  if (setting.action == SettingAction::PowerOffText) return SETTINGS.powerOffText;
+  if (setting.action == SettingAction::PowerOffImage) {
+    const char* name = strrchr(SETTINGS.powerOffImage, '/');
+    return name ? name + 1 : SETTINGS.powerOffImage;
+  }
   if (setting.action == SettingAction::Plugins) return SETTINGS.pluginsEnabled ? tr(STR_ENABLED) : tr(STR_DISABLED);
   if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
     // Guard like the valueGetter branch below: a corrupt/migrated settings

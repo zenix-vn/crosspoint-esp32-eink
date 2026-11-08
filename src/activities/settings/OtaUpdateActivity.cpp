@@ -4,6 +4,7 @@
 #include <I18n.h>
 #include <WiFi.h>
 
+#include "CrossPointSettings.h"
 #include "MappedInputManager.h"
 #include "SilentRestart.h"
 #include "activities/network/WifiSelectionActivity.h"
@@ -26,6 +27,7 @@ void OtaUpdateActivity::onWifiSelectionComplete(const bool success) {
   }
   requestUpdateAndWait();
 
+  updater.setBetaChannel(SETTINGS.otaChannel == 1);
   const auto res = updater.checkForUpdate();
   // NO_UPDATE here means the release carries no firmware asset for this board
   // (expected until per-board assets are published) — not a failure.
@@ -62,13 +64,22 @@ void OtaUpdateActivity::onWifiSelectionComplete(const bool success) {
   const char* options[] = {tr(STR_CANCEL), tr(STR_UPDATE)};
   // Default the selection to Update so the hardware Confirm button installs,
   // matching the pre-popup layout (Back = cancel, Confirm = update).
-  confirmPopup.show(tr(STR_NEW_UPDATE), options, 2, 1, [this](const int idx) {
+  const auto onChoice = [this](const int idx) {
     if (idx == 1) {
       runUpdateInstall();
     } else {
       finish();
     }
-  });
+  };
+  // The release notes ride in the dialog body, so "What's new" is read right
+  // where the choice is made.
+  const std::string& notes = updater.getReleaseNotes();
+  if (notes.empty()) {
+    confirmPopup.show(tr(STR_NEW_UPDATE), options, 2, 1, onChoice);
+  } else {
+    const std::string message = std::string(tr(STR_WHATS_NEW)) + "\n" + notes;
+    confirmPopup.showMessage(tr(STR_NEW_UPDATE), message.c_str(), options, 2, 1, onChoice);
+  }
   requestUpdate();
 }
 
@@ -192,7 +203,9 @@ void OtaUpdateActivity::runUpdateInstall() {
     LOG_DBG("OTA", "Update failed: %d", res);
     {
       RenderLock lock(*this);
-      failedDetail = res == OtaUpdater::WRONG_DEVICE_ERROR ? tr(STR_FIRMWARE_WRONG_DEVICE) : nullptr;
+      failedDetail = res == OtaUpdater::WRONG_DEVICE_ERROR ? tr(STR_FIRMWARE_WRONG_DEVICE)
+                     : res == OtaUpdater::CHECKSUM_ERROR   ? tr(STR_FIRMWARE_CHECKSUM_FAILED)
+                                                           : nullptr;
       state = FAILED;
     }
     requestUpdate();

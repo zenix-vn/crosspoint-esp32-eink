@@ -17,6 +17,8 @@ for size in ${NOTOSANS_FONT_SIZES[@]}; do
   done
 done
 
+# UI fonts are 2-bit so menus get the same gray anti-aliasing as book text
+# (Settings > Menu anti-aliasing); a B/W-only frame still draws every inked pixel.
 UI_FONT_SIZES=(10 12)
 UI_FONT_STYLES=("Regular" "Bold")
 
@@ -64,7 +66,7 @@ for size in ${UI_FONT_SIZES[@]}; do
     viet_path="../builtinFonts/source/Ubuntu/Ubuntu-Vietnamese-${style}.ttf"
     output_path="../builtinFonts/${font_name}.h"
     python fontconvert.py $font_name $size $font_path $latin_fallback_path $hebrew_path $arabic_path $viet_path \
-      --additional-intervals 0x05D0,0x05EA "${ARABIC_INTERVALS[@]}" > $output_path
+      --additional-intervals 0x05D0,0x05EA "${ARABIC_INTERVALS[@]}" --2bit > $output_path
     echo "Generated $output_path"
   done
 done
@@ -76,7 +78,7 @@ python fontconvert.py ubuntu_8_regular 8 \
   ../builtinFonts/source/NotoSansHebrew/NotoSansHebrew-Regular.ttf \
   ../builtinFonts/source/NotoSansArabic/NotoSansArabic-Regular.ttf \
   ../builtinFonts/source/Ubuntu/Ubuntu-Vietnamese-Regular.ttf \
-  --additional-intervals 0x05D0,0x05EA "${ARABIC_INTERVALS[@]}" > ../builtinFonts/ubuntu_8_regular.h
+  --additional-intervals 0x05D0,0x05EA "${ARABIC_INTERVALS[@]}" --2bit > ../builtinFonts/ubuntu_8_regular.h
 
 echo ""
 echo "Running compression verification..."

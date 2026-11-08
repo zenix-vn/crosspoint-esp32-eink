@@ -20,6 +20,7 @@ class ReaderActivity : public Activity {
   std::unique_ptr<EndOfBookOptions> endOfBookOptions;
   std::atomic<bool> endOfBookOptionsReady{false};
   ReaderSession readerSession;
+  uint16_t sessionPages = 0;  // forward page turns since the last session flush
   std::atomic<bool> pageRendered{false};
   bool bookRemembered = false;
   void markPageRendered() { pageRendered.store(true, std::memory_order_release); }
@@ -82,6 +83,7 @@ class ReaderActivity : public Activity {
   void prepareForSleep() override;
   void loop() override;
   void render(RenderLock&& lock) override;
+  GrayText grayText() const override { return GrayText::Never; }
 
   bool isReaderActivity() const final { return true; }
   bool acceptsRemoteInput() const final { return pageRendered.load(std::memory_order_acquire); }

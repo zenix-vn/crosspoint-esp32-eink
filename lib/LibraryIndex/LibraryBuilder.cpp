@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdio>
 #include <cstring>
 
 #include "LibraryIndexFile.h"
@@ -40,6 +41,11 @@ constexpr size_t NAME_BUF_SIZE = 512;
 // the display name. Fixed stride keeps the second pass a seek rather than a scan.
 constexpr size_t STAGE_NAME_BYTES = 255;
 constexpr size_t STAGE_AUTHOR_BYTES = 128;
+// Enough for a handful of genre terms; recommendations only compare words.
+constexpr size_t STAGE_SUBJECT_BYTES = 128;
+constexpr size_t STAGE_SERIES_BYTES = 96;
+// A series position as text ("3", "2.5"); fits any %g of a sane volume number.
+constexpr size_t STAGE_SERIES_INDEX_BYTES = 12;
 // A folder path is stored behind one length byte in the folder section.
 constexpr size_t FOLDER_PATH_BYTES = 255;
 struct StagedEntry {
@@ -57,6 +63,13 @@ struct StagedEntry {
   // title on the other.
   uint8_t titleLen;
   char title[STAGE_NAME_BYTES];
+  // dc:subject values joined by ", ", clamped on a UTF-8 boundary.
+  uint8_t subjectsLen;
+  char subjects[STAGE_SUBJECT_BYTES];
+  uint8_t seriesLen;
+  char series[STAGE_SERIES_BYTES];
+  uint8_t seriesIndexLen;
+  char seriesIndex[STAGE_SERIES_INDEX_BYTES];
 };
 constexpr size_t STAGE_STRIDE = sizeof(StagedEntry);
 
@@ -274,6 +287,12 @@ struct WalkState {
 // because the two branches have different value categories.
 const std::string kNoTitle;
 
+std::string formatSeriesIndex(const float index) {
+  char text[STAGE_SERIES_INDEX_BYTES + 1];
+  snprintf(text, sizeof(text), "%g", static_cast<double>(index));
+  return text;
+}
+
 int findPrior(WalkState& st, const uint64_t pathHash) {
   serviceBuilder(st.serviceUnits);
   if (st.priorCount == 0) return -1;
@@ -299,6 +318,9 @@ int findPrior(WalkState& st, const uint64_t pathHash) {
   // and a name pulled out of one by pattern is a guess wearing a fact's clothes.
   std::string title = stemOf(name);
   std::string author;
+  std::string subjects;
+  std::string series;
+  std::string seriesIndex;
   bool titleFromBook = false;
   bool authorFromBook = false;
 
@@ -331,6 +353,13 @@ int findPrior(WalkState& st, const uint64_t pathHash) {
       st.failed = true;
       return false;
     }
+    float priorSeriesIndex = -1.0f;
+    if (!st.previous->readSubjects(priorRecord, subjects) ||
+        !st.previous->readSeries(priorRecord, series, priorSeriesIndex)) {
+      st.failed = true;
+      return false;
+    }
+    if (priorSeriesIndex >= 0.0f) seriesIndex = formatSeriesIndex(priorSeriesIndex);
     entry.record = priorRecord;
     authorFromBook = !author.empty();
     if (hasBookTitle) {
@@ -359,7 +388,13 @@ int findPrior(WalkState& st, const uint64_t pathHash) {
       }
     } else {
       Epub epub(fullPath, CACHE_DIR);
-      loaded = epub.loadMetadata(bookTitle, author);
+      Epub::LibraryMetadata extra;
+      loaded = epub.loadMetadata(bookTitle, author, extra);
+      if (loaded) {
+        subjects = std::move(extra.subjects);
+        series = std::move(extra.series);
+        if (extra.seriesIndex && *extra.seriesIndex >= 0.0f) seriesIndex = formatSeriesIndex(*extra.seriesIndex);
+      }
     }
     if (loaded) {
       entry.record.metadataStatus = CLIX_METADATA_EXTRACTED;
@@ -426,6 +461,19 @@ int findPrior(WalkState& st, const uint64_t pathHash) {
   const std::string displayAuthor = cleanPersonName(author);
   entry.authorLen = static_cast<uint8_t>(std::min(displayAuthor.size(), STAGE_AUTHOR_BYTES));
   memcpy(entry.author, displayAuthor.data(), entry.authorLen);
+
+  const size_t subjectBytes = std::min(subjects.size(), STAGE_SUBJECT_BYTES);
+  entry.subjectsLen =
+      static_cast<uint8_t>(utf8SafeTruncateBuffer(subjects.data(), static_cast<int>(subjectBytes)));
+  memcpy(entry.subjects, subjects.data(), entry.subjectsLen);
+  const size_t seriesBytes = std::min(series.size(), STAGE_SERIES_BYTES);
+  entry.seriesLen = static_cast<uint8_t>(utf8SafeTruncateBuffer(series.data(), static_cast<int>(seriesBytes)));
+  memcpy(entry.series, series.data(), entry.seriesLen);
+  // A position without a series name has nothing to be a position in.
+  if (entry.seriesLen > 0) {
+    entry.seriesIndexLen = static_cast<uint8_t>(std::min(seriesIndex.size(), STAGE_SERIES_INDEX_BYTES));
+    memcpy(entry.seriesIndex, seriesIndex.data(), entry.seriesIndexLen);
+  }
 
   st.stageOut->write(&entry, STAGE_STRIDE);
   st.books++;
@@ -564,7 +612,7 @@ void walk(WalkState& st, const std::string& path, const int depth) {
 // truth.
 uint32_t blobBytesFor(const StagedEntry& entry, const StagedEntry& canonical) {
   return sizeof(entry.pathHash) + entry.record.nameLen + 1u + canonical.authorLen + 1u + entry.titleLen + 1u +
-         entry.authorLen;
+         entry.authorLen + 1u + entry.subjectsLen + 1u + entry.seriesLen + 1u + entry.seriesIndexLen;
 }
 
 bool emitIndex(const char* folderStagePath, WalkState& st, const uint16_t* order, const uint16_t* resolvedFirstSeen,
@@ -973,8 +1021,8 @@ bool emitIndex(const char* folderStagePath, WalkState& st, const uint16_t* order
     serviceBuilder(serviceUnits);
     if (!fetch(order[i], entry)) break;
     entry.record.nameOff = nameCursor;
-    // The blob holds the path hash, basename, chosen author spelling, title, and
-    // source author spelling used by later rebuilds.
+    // The blob holds the path hash, basename, chosen author spelling, title,
+    // source author spelling used by later rebuilds, subjects, and series.
     // Keeping them adjacent means no second offset has to live in the record.
     const uint16_t from = canonicalFrom ? canonicalFrom[i] : i;
     if (!fetch(order[from], canonical)) break;
@@ -1011,6 +1059,12 @@ bool emitIndex(const char* folderStagePath, WalkState& st, const uint16_t* order
     if (entry.titleLen > 0) put(entry.title, entry.titleLen);
     put(&entry.authorLen, 1);
     if (entry.authorLen > 0) put(entry.author, entry.authorLen);
+    put(&entry.subjectsLen, 1);
+    if (entry.subjectsLen > 0) put(entry.subjects, entry.subjectsLen);
+    put(&entry.seriesLen, 1);
+    if (entry.seriesLen > 0) put(entry.series, entry.seriesLen);
+    put(&entry.seriesIndexLen, 1);
+    if (entry.seriesIndexLen > 0) put(entry.seriesIndex, entry.seriesIndexLen);
     blobWritten += blobBytesFor(entry, canonical);
   }
   header.nameLen = blobWritten;

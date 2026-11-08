@@ -212,15 +212,10 @@ Settings are grouped into **System**, **Display**, **Reader**, **Controls**, **L
 
 - **Sleep Screen**: Which sleep screen to display when the device sleeps:
   
-  - "Dark" (default) - The default dark Crosspoint logo sleep screen
-  - "Light" - The same default sleep screen, on a white background
-  - "Custom" - Custom images from the SD card; see [Sleep Screen](#37-sleep-screen) below for more information
-  - "Cover" - The book cover image
-  - "None" - A blank screen
-  - "Cover + Custom" - The book cover image while actively reading, falls back to "Custom" behavior otherwise
-  - "Quick resume" - The text of the last page read will be displayed on the sleep screen and a moon icon is shown on the edge of the screen. Waking up the device will return to the same page of the opened book. This is useful for quickly resuming reading without waiting for the device to fully wake up and load the book.
-  - "Transparent" - A transparent overlay image drawn over the current screen; see [Sleep Screen](#37-sleep-screen) below for more information
-  - "Cover + Transparent" - The transparent overlay image drawn over the cover of the last opened book, falls back to "Transparent" behavior if there is no book cover
+  - "Dark" - The Crosspoint logo sleep screen
+  - "Light" - The same sleep screen, on a white background
+  - "Today" (default) - A daily overview: the date, the weather, minutes read against the daily goal, words due for review, reading and study streaks, the book being read and a quote from your highlights. It shows the time it was drawn; the panel keeps it without using power.
+- **Weather**: Shows the weather on the Desktop home clock and on the "Today" sleep screen. While going to sleep, at most every three hours, the device joins the last-used saved Wi-Fi network for a few seconds to fetch the forecast from Open-Meteo, then turns Wi-Fi off. The place is found from the network address; to choose it, set **Weather location** (a city name) on the device's web Settings page.
 - **Sleep Screen Cover Mode**: How to display the book cover or custom sleep image:
   
   - "Fit" (default) - Scale the image to fit centered on the screen, padding with white borders as necessary
@@ -257,6 +252,12 @@ Settings are grouped into **System**, **Display**, **Reader**, **Controls**, **L
   - "Lyra" - The new theme for Crosspoint featuring rounded elements and menu icons
   - "Lyra Extended" - Lyra, but displays 3 books instead of 1 on the **[Home Screen](#31-home-screen)**
   - "RoundedRaff" - A rounded theme with additional visual styling
+
+- **Menu Anti-Aliasing**: Smooth grey edges on text outside the reader. Each redraw adds a grey pass, which takes a moment and flickers lightly:
+  
+  - "OFF" - Black and white only (fastest)
+  - "Static pages" (default) - Statistics pages, vocabulary cards, book details, dictionary definitions and confirmations
+  - "Everywhere" - Every menu and list too
 
 - **Sunlight Fading Fix**: Configure whether to enable a software-fix for the issue where white X4 models may fade when used in direct sunlight:
   
@@ -627,6 +628,16 @@ Once installed, custom fonts appear in **Settings → Reader → Font Family** a
 If the reader shows **Damaged font file**, a `.cpfont` file on the SD card is broken (for example, from an interrupted copy). The affected characters are drawn blank. Delete the font family's folder and install it again.
 
 See [docs/sd-card-fonts.md](./docs/sd-card-fonts.md) for full installation details and SD card folder structure.
+
+### 3.9 Vocabulary Trainer
+
+Open **Vocabulary** in the Home dock (Settings is now at the bottom of the **More** menu).
+
+- **Study now** shows today's flash cards: words that are due plus a few new ones (Settings → *New words per day*). Tap the card to see the meaning, then tap **Again**, **Hard**, **Good** or **Easy**. Each answer decides when the word comes back.
+- **Quiz** asks ten four-choice questions about words you have already studied.
+- **Choose word list** switches between the `.tsv` files in `/Vocab` on the SD card. A starter list of everyday words is created the first time.
+
+A word list is a text file with one word per line: `word`, `IPA`, `meaning` and `example`, separated by tabs. See [docs/vocabulary.md](./docs/vocabulary.md) for the format and how scheduling works.
 
 ---
 

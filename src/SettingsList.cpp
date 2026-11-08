@@ -9,17 +9,12 @@ void forEachBaseSetting(SettingVisitor visit, void* context) {
 
   // Enum settings are persisted as numeric values. Assign these labels by enum
   // value so a reordered menu or enum cannot silently swap their behavior.
+  // Only Dark, Light and Today are offered (SLEEP_SCREEN_CHOICES).
   static constexpr auto SLEEP_SCREEN_VALUES = [] {
-    std::array<StrId, CrossPointSettings::SLEEP_SCREEN_MODE_COUNT> values{};
+    std::array<StrId, CrossPointSettings::SLEEP_SCREEN_CHOICES> values{};
     values[CrossPointSettings::DARK] = StrId::STR_DARK;
     values[CrossPointSettings::LIGHT] = StrId::STR_LIGHT;
-    values[CrossPointSettings::CUSTOM] = StrId::STR_CUSTOM;
-    values[CrossPointSettings::COVER] = StrId::STR_COVER;
-    values[CrossPointSettings::COVER_CUSTOM] = StrId::STR_COVER_CUSTOM;
-    values[CrossPointSettings::BLANK] = StrId::STR_NONE_OPT;
-    values[CrossPointSettings::QUICK_RESUME] = StrId::STR_QUICK_RESUME;
-    values[CrossPointSettings::TRANSPARENT_CUSTOM] = StrId::STR_TRANSPARENT;
-    values[CrossPointSettings::COVER_TRANSPARENT] = StrId::STR_COVER_TRANSPARENT;
+    values[CrossPointSettings::TODAY] = StrId::STR_SLEEP_TODAY;
     return values;
   }();
   static constexpr auto STATUS_BAR_CLOCK_VALUES = [] {
@@ -33,7 +28,8 @@ void forEachBaseSetting(SettingVisitor visit, void* context) {
   const auto emit = [visit, context](auto&& info) { visit(context, info); };
   // --- Display ---
   emit(SettingInfo::StaticEnum(StrId::STR_SLEEP_SCREEN, &CrossPointSettings::sleepScreen, SLEEP_SCREEN_VALUES,
-                               "sleepScreen", StrId::STR_CAT_DISPLAY));
+                               // Renamed from "sleepScreen" when the modes were renumbered.
+                               "sleepScreenMode", StrId::STR_CAT_DISPLAY));
   emit(SettingInfo::Enum(StrId::STR_SLEEP_COVER_MODE, &CrossPointSettings::sleepScreenCoverMode,
                          {StrId::STR_FIT, StrId::STR_CROP}, "sleepScreenCoverMode", StrId::STR_CAT_DISPLAY));
   emit(SettingInfo::Enum(StrId::STR_SLEEP_COVER_FILTER, &CrossPointSettings::sleepScreenCoverFilter,
@@ -51,6 +47,20 @@ void forEachBaseSetting(SettingVisitor visit, void* context) {
                          "refreshFrequency", StrId::STR_CAT_DISPLAY));
   emit(SettingInfo::Enum(StrId::STR_UI_THEME, &CrossPointSettings::uiTheme, homeThemeValues(), "uiTheme",
                          StrId::STR_CAT_DISPLAY));
+  emit(SettingInfo::Value(StrId::STR_DAILY_READING_GOAL, &CrossPointSettings::dailyReadingGoalMinutes, {5, 240, 5},
+                          "dailyReadingGoalMinutes", StrId::STR_CAT_DISPLAY));
+  emit(SettingInfo::Value(StrId::STR_VOCAB_NEW_PER_DAY, &CrossPointSettings::vocabNewPerDay, {0, 50, 5},
+                          // Renamed from "vocabNewPerDay" when the default went 10 -> 20.
+                          "vocabNewWordsPerDay", StrId::STR_CAT_DISPLAY));
+  emit(SettingInfo::Enum(StrId::STR_VOCAB_LANGUAGE, &CrossPointSettings::vocabLanguage,
+                         {StrId::STR_VOCAB_LANG_EN, StrId::STR_VOCAB_LANG_ZH}, "vocabLanguage", StrId::STR_CAT_DISPLAY));
+  emit(SettingInfo::Enum(StrId::STR_UI_AA, &CrossPointSettings::uiAntiAliasing,
+                         {StrId::STR_STATE_OFF, StrId::STR_UI_AA_STATIC, StrId::STR_UI_AA_ALWAYS}, "uiAntiAliasing",
+                         StrId::STR_CAT_DISPLAY));
+  emit(SettingInfo::Toggle(StrId::STR_WEATHER, &CrossPointSettings::weatherEnabled, "weatherEnabled",
+                           StrId::STR_CAT_DISPLAY));
+  emit(SettingInfo::Toggle(StrId::STR_DESKTOP_CLOCK_LIVE, &CrossPointSettings::desktopClockLive, "desktopClockLive",
+                           StrId::STR_CAT_DISPLAY));
   if (!BoardConfig::hasTouch())
     emit(SettingInfo::Toggle(StrId::STR_SUNLIGHT_FADING_FIX, &CrossPointSettings::fadingFix, "fadingFix",
                              StrId::STR_CAT_DISPLAY));
@@ -205,11 +215,29 @@ void forEachBaseSetting(SettingVisitor visit, void* context) {
                            StrId::STR_CAT_SYSTEM));
   emit(SettingInfo::Toggle(StrId::STR_LIBRARY_USE_METADATA, &CrossPointSettings::libraryUseMetadata,
                            "libraryUseMetadata", StrId::STR_CAT_SYSTEM));
+  emit(SettingInfo::Enum(StrId::STR_OTA_CHANNEL, &CrossPointSettings::otaChannel,
+                         {StrId::STR_OTA_CHANNEL_STABLE, StrId::STR_OTA_CHANNEL_BETA}, "otaChannel",
+                         StrId::STR_CAT_SYSTEM));
   emit(SettingInfo::Toggle(StrId::STR_REMOVE_READ_FROM_RECENTS, &CrossPointSettings::removeReadBooksFromRecents,
                            "removeReadBooksFromRecents", StrId::STR_CAT_SYSTEM));
   emit(SettingInfo::Toggle(StrId::STR_MOVE_FINISHED_TO_READ, &CrossPointSettings::moveFinishedToReadFolder,
                            "moveFinishedToReadFolder", StrId::STR_CAT_SYSTEM));
 
+  // Device name: persisted + web-exposed, category-less; the on-device
+  // Settings screen edits it through SettingAction::DeviceName.
+  emit(SettingInfo::String(StrId::STR_DEVICE_NAME, &SETTINGS.deviceName[0], sizeof(SETTINGS.deviceName),
+                           "deviceName"));
+  emit(SettingInfo::String(StrId::STR_POWER_OFF_TEXT, &SETTINGS.powerOffText[0], sizeof(SETTINGS.powerOffText),
+                           "powerOffText"));
+  // Weather place (city name), set from the web Settings page; empty = automatic.
+  emit(SettingInfo::String(StrId::STR_WEATHER_LOCATION, &SETTINGS.weatherLocation[0], sizeof(SETTINGS.weatherLocation),
+                           "weatherLocation"));
+  // Account link key for the remote book inbox: category-less; typed on the
+  // Receive books screen or pasted on the web Settings page.
+  emit(SettingInfo::String(StrId::STR_INBOX_KEY, &SETTINGS.inboxKey[0], sizeof(SETTINGS.inboxKey), "inboxKey")
+           .withObfuscated());
+  emit(SettingInfo::String(StrId::STR_POWER_OFF_IMAGE, &SETTINGS.powerOffImage[0], sizeof(SETTINGS.powerOffImage),
+                           "powerOffImage"));
   // OPDS download folder: persisted + web-exposed, but category-less so it
   // is hidden from the on-device Settings screen (edited via OPDS UI).
   emit(SettingInfo::String(StrId::STR_OPDS_DOWNLOAD_FOLDER, &SETTINGS.opdsDownloadFolder[0],

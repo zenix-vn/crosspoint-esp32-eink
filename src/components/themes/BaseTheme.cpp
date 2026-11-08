@@ -341,7 +341,7 @@ void BaseTheme::applyHeaderStatus(const GfxRenderer& renderer, freeink::ui::Head
   static char percentText[8];
   if (SETTINGS.hideBatteryPercentage != CrossPointSettings::HIDE_BATTERY_PERCENTAGE::HIDE_ALWAYS) {
     snprintf(percentText, sizeof(percentText), "%u%%", static_cast<unsigned>(percentage));
-    status.battery.label = percentText;
+    status.battery.label = headerBatteryLabelOverride ? headerBatteryLabelOverride : percentText;
   }
   status.battery.glyphWidth = static_cast<int16_t>(metrics.batteryWidth);
   status.battery.glyphHeight = static_cast<int16_t>(metrics.batteryHeight);
@@ -381,7 +381,9 @@ void BaseTheme::applyHeaderStatus(const GfxRenderer& renderer, freeink::ui::Head
   // (SETTINGS.clockShowInHeader). Themes whose title layout has no room for
   // the clock's left reserve opt out via headerShowsClock.
   static char clockText[10];
-  if (metrics.headerShowsClock && SETTINGS.clockShowInHeader && halClock.isAvailable() &&
+  if (headerStatusOverride) {
+    status.clockText = headerStatusOverride;
+  } else if (metrics.headerShowsClock && SETTINGS.clockShowInHeader && halClock.isAvailable() &&
       halClock.formatTime(clockText, sizeof(clockText), SETTINGS.clockFormat == 1)) {
     status.clockText = clockText;
   }

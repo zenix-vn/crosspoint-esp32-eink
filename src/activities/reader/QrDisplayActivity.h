@@ -14,6 +14,7 @@ class QrDisplayActivity final : public Activity {
   void onExit() override;
   void loop() override;
   void render(RenderLock&&) override;
+  GrayText grayText() const override { return GrayText::Static; }
 
  private:
   std::string textPayload;
