@@ -944,10 +944,32 @@ function sendFile(string $file, string $name, string $type = 'application/octet-
         http_response_code(404);
         exit('Not found');
     }
+    $size = filesize($file);
     header('Content-Type: ' . $type);
-    header('Content-Length: ' . filesize($file));
     header("Content-Disposition: attachment; filename*=UTF-8''" . rawurlencode($name));
     header('Cache-Control: private, max-age=0');
+    header('Accept-Ranges: bytes');
+    // One byte range (the web PDF reader asks for the pages it shows, not the whole scan).
+    if (preg_match('/^bytes=(\d*)-(\d*)$/', $_SERVER['HTTP_RANGE'] ?? '', $m) && ($m[1] !== '' || $m[2] !== '')) {
+        $start = $m[1] === '' ? max(0, $size - (int)$m[2]) : (int)$m[1];
+        $end = $m[1] === '' || $m[2] === '' ? $size - 1 : min((int)$m[2], $size - 1);
+        if ($start > $end || $start >= $size) {
+            http_response_code(416);
+            header("Content-Range: bytes */$size");
+            exit;
+        }
+        http_response_code(206);
+        header("Content-Range: bytes $start-$end/$size");
+        header('Content-Length: ' . ($end - $start + 1));
+        $fh = fopen($file, 'rb');
+        fseek($fh, $start);
+        for ($left = $end - $start + 1; $left > 0 && !feof($fh); $left -= 65536) {
+            echo fread($fh, min(65536, $left));
+        }
+        fclose($fh);
+        exit;
+    }
+    header('Content-Length: ' . $size);
     readfile($file);
     exit;
 }

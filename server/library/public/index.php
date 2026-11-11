@@ -605,6 +605,7 @@ if ($page === 'book') {
               <?= $book['sent'] ? ' · đã gửi tới máy ' . date('d/m/Y', (int)$book['sent']) : '' ?></p>
             <div class="actions">
               <?php if ($sendable): ?><?= sendControls('send', ['id' => $book['id']]) ?><?php endif ?>
+              <?php if (in_array($book['format'], ['epub', 'pdf'], true)): ?><a class="button primary" href="read.php?id=<?= (int)$book['id'] ?>">📖 Đọc trên web</a><?php endif ?>
               <a class="button" href="file.php?id=<?= (int)$book['id'] ?>">Tải xuống</a>
               <?php if ($admin): ?><?= postButton('favorite', ['id' => $book['id']], $book['favorite'] ? '★ Bỏ yêu thích' : '☆ Yêu thích') ?><?php endif ?>
             </div>
@@ -863,6 +864,7 @@ if ($page === 'mine') {
               <tr><td><?= h($f['name']) ?></td><td><?= $f['kind'] === 'deck' ? 'Bộ từ' : 'Sách' ?></td>
                   <td><?= h(humanSize((int)$f['size'])) ?></td><td><?= date('d/m/Y', (int)$f['mtime']) ?></td>
                   <td class="actions"><?= sendControls('sendfile', ['file' => $f['name']], 'primary small') ?>
+                    <?php if (str_ends_with(strtolower($f['name']), '.epub')): ?><a class="button small" href="read.php?f=<?= h(rawurlencode($f['name'])) ?>">Đọc</a><?php endif ?>
                     <a class="button small" href="?p=getfile&amp;f=<?= h(rawurlencode($f['name'])) ?>">Tải xuống</a>
                     <?= postButton('deletefile', ['file' => $f['name']], 'Xoá', 'danger small', 'Xoá tệp này?') ?></td></tr>
             <?php endforeach ?>

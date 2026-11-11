@@ -1,0 +1,34 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+
+  <!-- Builds CrossPointReader-Setup.msi from ../build/app/CrossPointReader.exe.
+       Run ../build-installer.ps1, which publishes the exe first. -->
+  <PropertyGroup>
+    <OutputName>CrossPointReader-Setup</OutputName>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <Cultures>vi-VN,en-US</Cultures>
+    <PublishDir>$(MSBuildThisFileDirectory)..\build\app\</PublishDir>
+    <DefineConstants>PublishDir=$(PublishDir);AppDir=$(MSBuildThisFileDirectory)..\</DefineConstants>
+    <OutputPath>$(MSBuildThisFileDirectory)..\dist\</OutputPath>
+    <SuppressPdbOutput>true</SuppressPdbOutput>
+    <!-- ICE43/ICE57 assume per-user folders; with Scope=perMachine the shortcuts go to the all-users Start menu and desktop. -->
+    <SuppressIces>ICE43;ICE57</SuppressIces>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="5.0.2" />
+  </ItemGroup>
+
+  <!-- vi-VN.source.wxl is edited as normal Vietnamese; the build rewrites it for code page 1258. -->
+  <ItemGroup>
+    <EmbeddedResource Include="$(IntermediateOutputPath)vi-VN.wxl" />
+  </ItemGroup>
+
+  <Target Name="Cp1258Strings" BeforeTargets="BeforeBuild" Inputs="vi-VN.source.wxl" Outputs="$(IntermediateOutputPath)vi-VN.wxl">
+    <Exec Command="pwsh -NoProfile -File &quot;$(MSBuildThisFileDirectory)..\tools\to-cp1258.ps1&quot; -In &quot;$(MSBuildThisFileDirectory)vi-VN.source.wxl&quot; -Out &quot;$(IntermediateOutputPath)vi-VN.wxl&quot;" />
+  </Target>
+
+</Project>
+
+

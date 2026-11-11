@@ -22,11 +22,18 @@ $pass = time();
 $known = [];
 foreach ($pdo->query('SELECT id, path, size, mtime FROM books') as $row) $known[$row['path']] = $row;
 
+// Books whose rights nobody has checked yet go under this top folder: they are
+// flagged 'copyright' on insert, so they are hidden from the first moment
+// (rights.php only reviews rights = '') until the admin marks them free.
+const HELD_FOLDER = 'ban quyen - cho duyet';
+
+// rights and rights_note are set on insert only, so a later edit of the file
+// keeps the admin's verdict.
 $insert = $pdo->prepare(<<<SQL
     INSERT INTO books(path, title, author, language, description, category, subcategory, format, size, mtime,
-                      added, cover, search, seen)
+                      added, cover, search, seen, rights, rights_note)
     VALUES (:path, :title, :author, :language, :description, :category, :subcategory, :format, :size, :mtime,
-            :added, 0, :search, :seen)
+            :added, 0, :search, :seen, :rights, :rights_note)
     ON CONFLICT(path) DO UPDATE SET title = excluded.title, author = excluded.author, language = excluded.language,
         description = excluded.description, format = excluded.format, size = excluded.size, mtime = excluded.mtime,
         search = excluded.search, seen = excluded.seen
@@ -63,7 +70,10 @@ foreach ($files as $file) {
     $author = ($epub['author'] ?? '') ?: $meta['author'];
     $language = $epub['language'] ?? '';
     if ($language === '' && str_contains(fold($path), 'tieng anh')) $language = 'en';
+    $held = fold($folders[0] ?? '') === HELD_FOLDER;
     $insert->execute([
+        ':rights' => $held ? 'copyright' : '',
+        ':rights_note' => $held ? 'Chưa xác minh bản quyền (nguồn không rõ), chờ admin duyệt' : '',
         ':path' => $path, ':title' => $title, ':author' => $author, ':language' => $language,
         ':description' => mb_substr($epub['description'] ?? '', 0, 4000), ':category' => $category,
         ':subcategory' => $subcategory, ':format' => $ext, ':size' => $size, ':mtime' => $mtime, ':added' => time(),

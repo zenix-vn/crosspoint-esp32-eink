@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vietnamese for the WixUI_Minimal wizard and this package. Strings not here
+     fall back to WiX's en-US (Cultures="vi-VN,en-US" in the .wixproj). -->
+<WixLocalization Culture="vi-VN" Codepage="1258" Language="1066" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+
+  <!-- This package -->
+  <String Id="DowngradeError" Value="Máy đã có phiên bản Zenix CrossPoint Reader mới hơn. Hãy gỡ bản đó trước nếu muốn cài bản này." />
+  <String Id="EpubTypeName" Value="Sách điện tử EPUB" />
+  <String Id="AppDescription" Value="Đọc sách EPUB, thư viện CrossPoint (OPDS) và nhận sách qua Wi-Fi" />
+  <String Id="LaunchApp" Value="Mở Zenix CrossPoint Reader" />
+
+  <!-- Buttons -->
+  <String Id="WixUIBack" Value="&amp;Quay lại" />
+  <String Id="WixUINext" Value="&amp;Tiếp" />
+  <String Id="WixUICancel" Value="Hủy" />
+  <String Id="WixUIFinish" Value="&amp;Hoàn tất" />
+  <String Id="WixUIRetry" Value="&amp;Thử lại" />
+  <String Id="WixUIIgnore" Value="&amp;Bỏ qua" />
+  <String Id="WixUIYes" Value="&amp;Có" />
+  <String Id="WixUINo" Value="&amp;Không" />
+  <String Id="WixUIOK" Value="OK" />
+  <String Id="WixUIPrint" Value="&amp;In" />
+
+  <!-- Welcome + terms -->
+  <String Id="WelcomeEulaDlg_Title" Value="Cài đặt [ProductName]" />
+  <String Id="WelcomeEulaDlgTitle" Value="{\WixUI_Font_Title}Chào mừng bạn đến với [ProductName]" />
+  <String Id="WelcomeEulaDlgLicenseAcceptedCheckBox" Value="Tôi đồng ý với các điều &amp;khoản trên" />
+  <String Id="WelcomeEulaDlgInstall" Value="&amp;Cài đặt" />
+  <String Id="WelcomeEulaDlgUpdate" Value="&amp;Cập nhật" />
+
+  <!-- Progress -->
+  <String Id="ProgressDlg_Title" Value="Cài đặt [ProductName]" />
+  <String Id="ProgressDlgTitleInstalling" Value="{\WixUI_Font_Title}Đang cài đặt [ProductName]" />
+  <String Id="ProgressDlgTextInstalling" Value="Vui lòng chờ trong giây lát, [ProductName] đang được cài đặt." />
+  <String Id="ProgressDlgTitleChanging" Value="{\WixUI_Font_Title}Đang thay đổi [ProductName]" />
+  <String Id="ProgressDlgTextChanging" Value="Vui lòng chờ trong giây lát." />
+  <String Id="ProgressDlgTitleRepairing" Value="{\WixUI_Font_Title}Đang sửa chữa [ProductName]" />
+  <String Id="ProgressDlgTextRepairing" Value="Vui lòng chờ trong giây lát, [ProductName] đang được sửa chữa." />
+  <String Id="ProgressDlgTitleRemoving" Value="{\WixUI_Font_Title}Đang gỡ [ProductName]" />
+  <String Id="ProgressDlgTextRemoving" Value="Vui lòng chờ trong giây lát, [ProductName] đang được gỡ khỏi máy." />
+  <String Id="ProgressDlgTitleUpdating" Value="{\WixUI_Font_Title}Đang cập nhật [ProductName]" />
+  <String Id="ProgressDlgTextUpdating" Value="Vui lòng chờ trong giây lát, [ProductName] đang được cập nhật." />
+  <String Id="ProgressDlgProgressBar" Value="Tiến trình" />
+  <String Id="ProgressDlgStatusLabel" Value="Trạng thái:" />
+
+  <!-- Finish / stopped -->
+  <String Id="ExitDialog_Title" Value="Cài đặt [ProductName]" />
+  <String Id="ExitDialogTitle" Value="{\WixUI_Font_Bigger}Đã cài đặt xong [ProductName]" />
+  <String Id="ExitDialogDescription" Value="Bấm Hoàn tất để đóng trình cài đặt. Sách EPUB giờ có thể mở bằng cách bấm đúp." />
+  <String Id="FatalError_Title" Value="Cài đặt [ProductName]" />
+  <String Id="FatalErrorTitle" Value="{\WixUI_Font_Bigger}Cài đặt [ProductName] bị dừng" />
+  <String Id="FatalErrorDescription1" Value="Quá trình cài đặt dừng lại vì có lỗi. Máy tính của bạn chưa bị thay đổi gì. Bạn có thể chạy lại trình cài đặt sau." />
+  <String Id="FatalErrorDescription2" Value="Bấm Hoàn tất để đóng trình cài đặt." />
+  <String Id="UserExit_Title" Value="Cài đặt [ProductName]" />
+  <String Id="UserExitTitle" Value="{\WixUI_Font_Bigger}Đã hủy cài đặt [ProductName]" />
+  <String Id="UserExitDescription1" Value="Quá trình cài đặt đã bị hủy. Máy tính của bạn chưa bị thay đổi gì. Bạn có thể chạy lại trình cài đặt bất cứ lúc nào." />
+  <String Id="UserExitDescription2" Value="Bấm Hoàn tất để đóng trình cài đặt." />
+  <String Id="CancelDlg_Title" Value="Cài đặt [ProductName]" />
+  <String Id="CancelDlgText" Value="Bạn có chắc muốn hủy cài đặt [ProductName]?" />
+  <String Id="CancelDlgIconTooltip" Value="Thông tin" />
+  <String Id="ErrorDlg_Title" Value="Cài đặt [ProductName]" />
+  <String Id="ErrorDlgErrorIconTooltip" Value="Thông tin" />
+
+  <!-- Preparing / resuming -->
+  <String Id="PrepareDlg_Title" Value="Cài đặt [ProductName]" />
+  <String Id="PrepareDlgTitle" Value="{\WixUI_Font_Bigger}Chào mừng bạn đến với [ProductName]" />
+  <String Id="PrepareDlgDescription" Value="Vui lòng chờ, trình cài đặt đang chuẩn bị." />
+  <String Id="ResumeDlg_Title" Value="Cài đặt [ProductName]" />
+  <String Id="ResumeDlgTitle" Value="{\WixUI_Font_Bigger}Tiếp tục cài đặt [ProductName]" />
+  <String Id="ResumeDlgDescription" Value="Trình cài đặt sẽ hoàn thành việc cài [ProductName]. Bấm Cài đặt để tiếp tục hoặc Hủy để thoát." />
+  <String Id="ResumeDlgInstall" Value="&amp;Cài đặt" />
+  <String Id="WaitForCostingDlg_Title" Value="Cài đặt [ProductName]" />
+  <String Id="WaitForCostingDlgText" Value="Vui lòng chờ, trình cài đặt đang tính dung lượng cần dùng." />
+  <String Id="WaitForCostingDlgReturn" Value="&amp;Quay lại" />
+  <String Id="WaitForCostingDlgIconTooltip" Value="Chú ý" />
+
+  <!-- Files in use -->
+  <String Id="FilesInUse_Title" Value="Cài đặt [ProductName]" />
+  <String Id="FilesInUseTitle" Value="{\WixUI_Font_Title}Tệp đang được sử dụng" />
+  <String Id="FilesInUseDescription" Value="Một số tệp cần cập nhật đang được dùng." />
+  <String Id="FilesInUseText" Value="Các ứng dụng sau đang dùng tệp cần cập nhật. Hãy đóng chúng rồi bấm Thử lại, hoặc bấm Thoát." />
+  <String Id="FilesInUseExit" Value="&amp;Thoát" />
+  <String Id="MsiRMFilesInUse_Title" Value="Cài đặt [ProductName]" />
+  <String Id="MsiRMFilesInUseTitle" Value="{\WixUI_Font_Title}Tệp đang được sử dụng" />
+  <String Id="MsiRMFilesInUseDescription" Value="Một số tệp cần cập nhật đang được dùng." />
+  <String Id="MsiRMFilesInUseText" Value="Các ứng dụng sau đang dùng tệp cần cập nhật. Trình cài đặt có thể tự đóng và mở lại chúng, hoặc bạn khởi động lại máy sau." />
+  <String Id="MsiRMFilesInUseUseRM" Value="&amp;Đóng các ứng dụng và thử mở lại chúng." />
+  <String Id="MsiRMFilesInUseDontUseRM" Value="&amp;Không đóng ứng dụng. Cần khởi động lại máy sau." />
+
+  <!-- Maintenance (run again from Settings > Apps) -->
+  <String Id="MaintenanceWelcomeDlg_Title" Value="Cài đặt [ProductName]" />
+  <String Id="MaintenanceWelcomeDlgTitle" Value="{\WixUI_Font_Bigger}Quản lý [ProductName]" />
+  <String Id="MaintenanceWelcomeDlgDescription" Value="Bạn có thể sửa chữa hoặc gỡ [ProductName] khỏi máy tính. Bấm Tiếp để tiếp tục hoặc Hủy để thoát." />
+  <String Id="MaintenanceTypeDlg_Title" Value="Cài đặt [ProductName]" />
+  <String Id="MaintenanceTypeDlgTitle" Value="{\WixUI_Font_Title}Sửa chữa hoặc gỡ cài đặt" />
+  <String Id="MaintenanceTypeDlgDescription" Value="Chọn việc bạn muốn làm." />
+  <String Id="MaintenanceTypeDlgChangeButton" Value="&amp;Thay đổi" />
+  <String Id="MaintenanceTypeDlgChangeButtonTooltip" Value="Thay đổi cài đặt" />
+  <String Id="MaintenanceTypeDlgChangeText" Value="Thay đổi các thành phần được cài." />
+  <String Id="MaintenanceTypeDlgChangeDisabledText" Value="[ProductName] không có thành phần nào để chọn riêng." />
+  <String Id="MaintenanceTypeDlgRepairButton" Value="&amp;Sửa chữa" />
+  <String Id="MaintenanceTypeDlgRepairButtonTooltip" Value="Sửa chữa cài đặt" />
+  <String Id="MaintenanceTypeDlgRepairText" Value="Khôi phục tệp, lối tắt và mục đăng ký bị thiếu hoặc hỏng." />
+  <String Id="MaintenanceTypeDlgRepairDisabledText" Value="[ProductName] không thể sửa chữa." />
+  <String Id="MaintenanceTypeDlgRemoveButton" Value="&amp;Gỡ cài đặt" />
+  <String Id="MaintenanceTypeDlgRemoveButtonTooltip" Value="Gỡ cài đặt" />
+  <String Id="MaintenanceTypeDlgRemoveText" Value="Gỡ [ProductName] khỏi máy tính. Thư viện sách của bạn vẫn được giữ lại." />
+  <String Id="MaintenanceTypeDlgRemoveDisabledText" Value="[ProductName] không thể gỡ." />
+  <String Id="VerifyReadyDlg_Title" Value="Cài đặt [ProductName]" />
+  <String Id="VerifyReadyDlgInstall" Value="&amp;Cài đặt" />
+  <String Id="VerifyReadyDlgInstallTitle" Value="{\WixUI_Font_Title}Sẵn sàng cài đặt [ProductName]" />
+  <String Id="VerifyReadyDlgInstallText" Value="Bấm Cài đặt để bắt đầu, Quay lại để xem lại, hoặc Hủy để thoát." />
+  <String Id="VerifyReadyDlgChange" Value="&amp;Thay đổi" />
+  <String Id="VerifyReadyDlgChangeTitle" Value="{\WixUI_Font_Title}Sẵn sàng thay đổi [ProductName]" />
+  <String Id="VerifyReadyDlgChangeText" Value="Bấm Thay đổi để bắt đầu, Quay lại để xem lại, hoặc Hủy để thoát." />
+  <String Id="VerifyReadyDlgRepair" Value="&amp;Sửa chữa" />
+  <String Id="VerifyReadyDlgRepairTitle" Value="{\WixUI_Font_Title}Sẵn sàng sửa chữa [ProductName]" />
+  <String Id="VerifyReadyDlgRepairText" Value="Bấm Sửa chữa để bắt đầu, Quay lại để xem lại, hoặc Hủy để thoát." />
+  <String Id="VerifyReadyDlgRemove" Value="&amp;Gỡ cài đặt" />
+  <String Id="VerifyReadyDlgRemoveTitle" Value="{\WixUI_Font_Title}Sẵn sàng gỡ [ProductName]" />
+  <String Id="VerifyReadyDlgRemoveText" Value="Bấm Gỡ cài đặt để gỡ [ProductName] khỏi máy. Thư viện sách của bạn vẫn được giữ lại." />
+  <String Id="VerifyReadyDlgUpdate" Value="&amp;Cập nhật" />
+  <String Id="VerifyReadyDlgUpdateTitle" Value="{\WixUI_Font_Title}Sẵn sàng cập nhật [ProductName]" />
+  <String Id="VerifyReadyDlgUpdateText" Value="Bấm Cập nhật để bắt đầu, Quay lại để xem lại, hoặc Hủy để thoát." />
+</WixLocalization>

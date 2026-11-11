@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zenix CrossPoint Reader</title>
+  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="reader.css">
+</head>
+<body>
+  <div id="app" class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="#fff" d="M11 6.6 3.5 5v13l7.5 1.8z"/><path fill="#fff" opacity=".78" d="m13 6.6 7.5-1.6v13L13 19.8z"/></svg>
+        </div>
+        <div class="brand-text"><span class="brand-kicker">Zenix</span><b>CrossPoint</b><span>Reader</span></div>
+      </div>
+      <nav class="nav" id="nav">
+        <a href="#/library" data-view="library"><span class="nav-ic" data-icon="book"></span><span>Thư viện</span><span class="nav-badge" id="badge-library" hidden></span></a>
+        <a href="#/discover" data-view="discover"><span class="nav-ic" data-icon="compass"></span><span>Khám phá</span></a>
+        <a href="#/words" data-view="words"><span class="nav-ic" data-icon="languages"></span><span>Từ vựng</span></a>
+        <a href="#/inbox" data-view="inbox"><span class="nav-ic" data-icon="wifi"></span><span>Nhận sách</span><span class="nav-dot" id="dot-inbox" hidden></span></a>
+      </nav>
+      <div class="sidebar-foot">
+        <a href="#/settings" data-view="settings" class="nav-link"><span class="nav-ic" data-icon="settings"></span><span>Cài đặt</span><span class="nav-dot update" id="dot-update" hidden></span></a>
+        <button class="account" id="account" type="button"></button>
+      </div>
+    </aside>
+    <main id="main" class="main" tabindex="-1"></main>
+  </div>
+
+  <section id="reader" class="reader" hidden></section>
+
+  <div id="drop" class="drop" hidden>
+    <div class="drop-box">
+      <div class="drop-ic" data-icon="upload"></div>
+      <b>Thả tệp để thêm vào thư viện</b>
+      <span>Hỗ trợ EPUB và TXT</span>
+    </div>
+  </div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <div id="layer"></div>
+  <input id="file-input" type="file" accept=".epub,.txt" multiple hidden>
+
+  <script src="vendor/jszip.min.js"></script>
+  <script src="vendor/epub.min.js"></script>
+  <script src="icons.js"></script>
+  <script src="app.js"></script>
+  <script src="features.js"></script>
+  <script src="reader.js"></script>
+</body>
+</html>

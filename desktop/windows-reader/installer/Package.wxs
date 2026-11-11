@@ -1,0 +1,88 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <Package Name="Zenix CrossPoint Reader"
+           Manufacturer="Zenix"
+           Version="!(bind.FileVersion.AppExe)"
+           UpgradeCode="6C2F6E2B-8B3F-4C61-9F0E-3D7C2A9B5E41"
+           Scope="perMachine"
+           Compressed="yes">
+
+    <SummaryInformation Description="!(loc.AppDescription)" />
+
+    <!-- A newer copy replaces the old one; an older one refuses to install over a newer. -->
+    <MajorUpgrade DowngradeErrorMessage="!(loc.DowngradeError)" Schedule="afterInstallInitialize" AllowSameVersionUpgrades="yes" />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="AppIcon.ico" SourceFile="$(var.AppDir)app.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://crosspoint.zenix.vn/" />
+    <Property Id="ARPHELPLINK" Value="https://crosspoint.zenix.vn/library/" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Zenix CrossPoint Reader" />
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="Zenix CrossPoint Reader" Level="1">
+      <ComponentRef Id="AppExe" />
+      <ComponentRef Id="Registration" />
+    </Feature>
+
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="AppExe" Guid="3E0A8F55-3C7B-4A0E-9C1D-6B1F2E8D7A10">
+        <File Id="AppExe" Source="$(var.PublishDir)CrossPointReader.exe" KeyPath="yes">
+          <!-- On the exe's own component: per-machine shortcuts keyed by the file. -->
+          <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="Zenix CrossPoint Reader"
+                    Description="!(loc.AppDescription)" WorkingDirectory="INSTALLFOLDER" />
+          <Shortcut Id="DesktopShortcut" Directory="DesktopFolder" Name="Zenix CrossPoint Reader"
+                    Description="!(loc.AppDescription)" WorkingDirectory="INSTALLFOLDER" />
+        </File>
+
+        <!-- Double click on an .epub opens it here. -->
+        <ProgId Id="CrossPoint.EPUB" Description="!(loc.EpubTypeName)" Icon="AppExe" IconIndex="0">
+          <Extension Id="epub" ContentType="application/epub+zip">
+            <Verb Id="open" TargetFile="AppExe" Argument="&quot;%1&quot;" />
+          </Extension>
+        </ProgId>
+      </Component>
+
+      <!-- Listed in Settings > Default apps, and in "Open with" for .txt. -->
+      <Component Id="Registration" Guid="9B4D2C71-5E8A-4F36-A1B2-7C3D4E5F6A21">
+        <RegistryKey Root="HKLM" Key="Software\CrossPoint\CrossPointReader\Capabilities">
+          <RegistryValue Name="ApplicationName" Type="string" Value="Zenix CrossPoint Reader" KeyPath="yes" />
+          <RegistryValue Name="ApplicationDescription" Type="string" Value="!(loc.AppDescription)" />
+          <RegistryValue Name="ApplicationIcon" Type="string" Value="[INSTALLFOLDER]CrossPointReader.exe,0" />
+          <RegistryValue Key="FileAssociations" Name=".epub" Type="string" Value="CrossPoint.EPUB" />
+        </RegistryKey>
+        <RegistryValue Root="HKLM" Key="Software\RegisteredApplications" Name="Zenix CrossPoint Reader" Type="string"
+                       Value="Software\CrossPoint\CrossPointReader\Capabilities" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\CrossPointReader.exe" Name="FriendlyAppName"
+                       Type="string" Value="Zenix CrossPoint Reader" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\CrossPointReader.exe\SupportedTypes" Name=".epub" Type="string" Value="" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\CrossPointReader.exe\SupportedTypes" Name=".txt" Type="string" Value="" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\CrossPointReader.exe\shell\open\command"
+                       Type="string" Value="&quot;[INSTALLFOLDER]CrossPointReader.exe&quot; &quot;%1&quot;" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.txt\OpenWithProgids" Name="CrossPoint.EPUB" Type="string" Value="" />
+      </Component>
+    </DirectoryRef>
+
+    <StandardDirectory Id="ProgramMenuFolder" />
+    <StandardDirectory Id="DesktopFolder" />
+
+    <!-- Wizard: welcome + terms, progress, finish with "open the app". -->
+    <ui:WixUI Id="WixUI_Minimal" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.AppDir)installer\license.rtf" />
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.AppDir)installer\banner.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.AppDir)installer\dialog.bmp" />
+
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.LaunchApp)" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <Property Id="WixShellExecTarget" Value="[#AppExe]" />
+    <CustomAction Id="LaunchApp" DllEntry="WixShellExec" BinaryRef="Wix4UtilCA_X64" Impersonate="yes" />
+    <UI>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApp"
+               Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed" />
+    </UI>
+  </Package>
+</Wix>
