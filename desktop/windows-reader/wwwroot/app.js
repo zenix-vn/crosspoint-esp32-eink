@@ -212,9 +212,9 @@ async function route() {
   App.lastHash = hash;
   App.view = view || 'library';
   $$('#app [data-view]').forEach((a) => a.classList.toggle('active', a.dataset.view === App.view));
-  const views = { library: renderLibrary, discover: renderDiscover, words: renderWords, inbox: renderInbox, settings: renderSettings };
+  const views = { library: renderLibrary, discover: renderDiscover, words: renderWords, translate: renderTranslate, inbox: renderInbox, settings: renderSettings };
   main.scrollTop = 0;
-  await (views[App.view] || renderLibrary)();
+  await (views[App.view] || renderLibrary)(arg);
 }
 window.addEventListener('hashchange', route);
 
@@ -375,6 +375,7 @@ function bookMenu(anchor, id) {
     { icon: 'book', label: b.lastOpened ? 'Đọc tiếp' : 'Bắt đầu đọc', fn: () => openBook(id) },
     { icon: 'info', label: 'Thông tin sách', fn: () => bookInfo(b) },
     { icon: 'send', label: 'Gửi tới máy đọc', fn: () => sendBookDialog(b) },
+    ...(b.source === 'translate' ? [] : [{ icon: 'translate', label: 'Dịch sang tiếng Việt', fn: () => { location.hash = '#/translate/' + id; } }]),
     { icon: 'folder', label: 'Hiện trong thư mục', fn: () => api.post(`/api/library/${id}/reveal`) },
     '-',
     { icon: 'trash', label: 'Xóa khỏi thư viện', danger: true, fn: () => deleteBook(b) },
@@ -392,19 +393,22 @@ function bookInfo(b) {
         <div class="detail-meta">
           ${b.language ? `<span>${icon('globe', 13)} ${esc(b.language)}</span>` : ''}
           <span>${icon('download', 13)} ${esc(fmtSize(b.fileSize))}</span>
-          <span>${icon(b.source === 'inbox' ? 'wifi' : b.source === 'opds' ? 'compass' : 'upload', 13)} ${b.source === 'inbox' ? 'Nhận qua Wi-Fi' : b.source === 'opds' ? 'Từ thư viện online' : 'Nhập từ máy'}</span>
+          <span>${icon(b.source === 'inbox' ? 'wifi' : b.source === 'opds' ? 'compass' : b.source === 'translate' ? 'translate' : 'upload', 13)} ${b.source === 'inbox' ? 'Nhận qua Wi-Fi' : b.source === 'opds' ? 'Từ thư viện online' : b.source === 'translate' ? 'Bản dịch' : 'Nhập từ máy'}</span>
           <span>${icon('clock', 13)} Thêm ${esc(fmtTime(b.added))}</span>
         </div>
         ${b.description ? `<div class="detail-summary">${esc(b.description)}</div>` : ''}
         <div class="detail-actions">
           <button class="btn primary" data-r="read">${icon('book', 17)} ${b.lastOpened ? `Đọc tiếp (${Math.round(b.progress * 100)}%)` : 'Bắt đầu đọc'}</button>
           <button class="btn" data-r="send">${icon('send', 16)} Gửi tới máy đọc</button>
+          ${b.source === 'translate' ? '' : `<button class="btn" data-r="tr">${icon('translate', 16)} Dịch sang tiếng Việt</button>`}
         </div>
       </div>
     </div>`, { wide: true });
   m.el.querySelector('[data-r=x]').onclick = m.close;
   m.el.querySelector('[data-r=read]').onclick = () => { m.close(); openBook(b.id); };
   m.el.querySelector('[data-r=send]').onclick = () => { m.close(); sendBookDialog(b); };
+  const tr = m.el.querySelector('[data-r=tr]');
+  if (tr) tr.onclick = () => { m.close(); location.hash = '#/translate/' + b.id; };
 }
 
 async function deleteBook(b) {

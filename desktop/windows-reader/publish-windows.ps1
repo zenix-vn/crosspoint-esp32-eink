@@ -5,14 +5,17 @@
 # Like scripts/publish_ota.py for the firmware: same host and SSH port.
 #
 #   pwsh -File publish-windows.ps1 -Bump -Notes "Tra từ khi đọc; gửi sách sang X4"
+#   pwsh -File publish-windows.ps1 -Bump -NotesFile notes.txt   # notes from a UTF-8 file (safe from any shell)
 #   pwsh -File publish-windows.ps1 -DryRun          # build and write latest.json, no upload
 param(
     [switch]$Bump,
     [string]$Notes = '',
+    [string]$NotesFile = '',
     [switch]$DryRun
 )
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
+if ($NotesFile) { $Notes = [IO.File]::ReadAllText((Resolve-Path $NotesFile), [Text.Encoding]::UTF8).Trim() }
 
 $SshHost = 'zenix-server'   # ~/.ssh/config alias, as in publish_ota.py
 $SshPort = '8430'

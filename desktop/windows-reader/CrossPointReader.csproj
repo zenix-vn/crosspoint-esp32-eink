@@ -11,7 +11,7 @@
     <Product>Zenix CrossPoint Reader</Product>
     <Company>Zenix</Company>
     <Description>EPUB reader for Windows with the CrossPoint library (OPDS) and book inbox</Description>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ApplicationVisualStyles>true</ApplicationVisualStyles>

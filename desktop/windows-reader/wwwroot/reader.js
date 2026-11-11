@@ -142,6 +142,14 @@ const Reader = {
       <div id="r-overlay"></div>`;
     this.applyChrome();
 
+    // With the menus hidden, moving the mouse to the top or bottom edge brings them back.
+    this.el.onmousemove = (e) => {
+      if (!this.el.classList.contains('immersive')) return;
+      this.el.classList.toggle('peek-top', e.clientY < 72);
+      this.el.classList.toggle('peek-bottom', e.clientY > innerHeight - 68);
+    };
+    this.el.onmouseleave = () => this.el.classList.remove('peek-top', 'peek-bottom');
+
     this.el.onclick = (e) => {
       const b = e.target.closest('[data-r]');
       if (!b) return;
@@ -221,6 +229,7 @@ const Reader = {
     r.hooks.content.register((contents) => this.onContent(contents));
     r.on('relocated', (loc) => this.onRelocated(loc));
     r.on('keydown', (e) => this.onKey(e));
+    r.on('mousemove', () => this.el.classList.remove('peek-top', 'peek-bottom'));
     r.on('click', (e) => this.onFrameClick(e));
     r.on('selected', (cfi, contents) => this.onSelected(contents));
     try {
@@ -1366,7 +1375,14 @@ const Reader = {
     return true;
   },
 
-  toggleImmersive() { this.el.classList.toggle('immersive'); },
+  toggleImmersive(on) {
+    const hide = this.el.classList.toggle('immersive', on);
+    this.el.classList.remove('peek-top', 'peek-bottom');
+    if (hide && !this.immersiveHinted) {
+      this.immersiveHinted = true;
+      toast('Đã ẩn menu. Bấm giữa trang, nhấn M hoặc đưa chuột lên mép trên để hiện lại.');
+    }
+  },
 
   onWheel(e) {
     if (this.prefs.layout === 'scroll' || this.panel) return;
@@ -1406,8 +1422,11 @@ const Reader = {
     } else if (k === 'Escape') {
       if (this.closeLookup()) return;
       if (this.closePanels()) return;
+      if (this.el.classList.contains('immersive')) { this.toggleImmersive(false); return; }
       if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); return; }
       this.close(true);
+    } else if (k === 'm' || k === 'M') {
+      stop(); this.toggleImmersive();
     } else if (k === 'F11' || k === 'f' || k === 'F') {
       stop(); this.toggleFullscreen();
     } else if (k === 't' || k === 'T') {

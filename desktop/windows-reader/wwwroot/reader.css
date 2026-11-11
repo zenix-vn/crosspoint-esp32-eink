@@ -15,6 +15,7 @@
 .r-top { border-bottom: 1px solid transparent; }
 .reader.immersive .r-top, .reader.immersive .r-bottom { opacity: 0; pointer-events: none; }
 .reader.immersive .r-nav { opacity: 0 !important; }
+.reader.immersive.peek-top .r-top, .reader.immersive.peek-bottom .r-bottom { opacity: 1; pointer-events: auto; }
 .r-btn {
   width: 40px; height: 40px; border-radius: 10px; border: none; background: transparent; color: var(--r-muted);
   display: grid; place-items: center; cursor: pointer; flex: none; transition: background .15s, color .15s;

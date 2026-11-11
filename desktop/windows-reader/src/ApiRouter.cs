@@ -25,6 +25,7 @@ internal sealed class ApiRouter
     private readonly InboxClient _inbox;
     private readonly LibraryApi _api;
     private readonly Updater _updater;
+    private readonly Translator _translator;
     private readonly MainForm _window;
 
     public ApiRouter(MainForm window, AppSettings settings, Library library)
@@ -36,6 +37,7 @@ internal sealed class ApiRouter
         _inbox = new InboxClient(settings, library);
         _api = new LibraryApi(settings, library);
         _updater = new Updater(settings, window);
+        _translator = new Translator(settings, library);
     }
 
     public Library Library => _library;
@@ -159,6 +161,9 @@ internal sealed class ApiRouter
                 };
             }
 
+            case "translate":
+                return await TranslateRoute(post, parts.Length > 2 ? parts[2] : "", q, Body);
+
             case "update":
             {
                 var action = parts.Length > 2 ? parts[2] : "";
@@ -248,6 +253,62 @@ internal sealed class ApiRouter
             case "reveal" when post:
                 Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{_library.BookFile(id)}\"") { UseShellExecute = true });
                 return ApiResponse.Ok();
+        }
+        return ApiResponse.Error("Không tìm thấy API", 404);
+    }
+
+    private async Task<ApiResponse> TranslateRoute(bool post, string action, System.Collections.Specialized.NameValueCollection q, Func<JsonObject> json)
+    {
+        switch (action)
+        {
+            case "status":
+                return ApiResponse.Json(_translator.Status(int.TryParse(q["after"], out var a) ? a : 0));
+            case "options":
+            {
+                var saved = _settings.Translate?.Deserialize<TranslateOptions>(JsonOpts.Default) ?? new TranslateOptions();
+                if (saved.OutDir.Length == 0) saved.OutDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "Translated_Books");
+                return ApiResponse.Json(saved);
+            }
+            case "info":
+            {
+                var book = _library.Get(q["id"] ?? "");
+                return book == null ? ApiResponse.Error("Không có sách này", 404) : ApiResponse.Json(new { cached = Translator.CachedCount(book) });
+            }
+            case "start" when post:
+                _translator.Start(json().Deserialize<TranslateOptions>(JsonOpts.Default) ?? new TranslateOptions());
+                return ApiResponse.Ok();
+            case "pause" when post:
+                _translator.Pause(json()["pause"]?.GetValue<bool>() ?? true);
+                return ApiResponse.Ok();
+            case "stop" when post:
+                _translator.Stop();
+                return ApiResponse.Ok();
+            case "clear-log" when post:
+                _translator.ClearLog();
+                return ApiResponse.Ok();
+            case "test" when post:
+                try
+                {
+                    return ApiResponse.Json(new { ok = true, text = await new GoogleTranslateClient().TestAsync() });
+                }
+                catch (GoogleHttpException e) when (e.Code == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    return ApiResponse.Json(new { ok = false, limited = true, error = "Google đang chặn tạm thời (HTTP 429). Đợi vài phút hoặc đổi mạng." });
+                }
+                catch (Exception e)
+                {
+                    return ApiResponse.Json(new { ok = false, error = e is GoogleHttpException h ? $"Google trả về lỗi HTTP {(int)h.Code}" : "Không kết nối được Google Dịch: " + e.Message });
+                }
+            case "pick-folder" when post:
+                return ApiResponse.Json(new { path = await _window.PickFolder(json()["path"]?.GetValue<string>()) });
+            case "open-folder" when post:
+            {
+                var path = json()["path"]?.GetValue<string>() ?? "";
+                if (path.Length == 0) break;
+                if (File.Exists(path)) Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = true });
+                else { Directory.CreateDirectory(path); Process.Start(new ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = true }); }
+                return ApiResponse.Ok();
+            }
         }
         return ApiResponse.Error("Không tìm thấy API", 404);
     }

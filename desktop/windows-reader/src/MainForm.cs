@@ -226,6 +226,23 @@ internal sealed class MainForm : Form
         return done.Task;
     }
 
+    // The Windows folder picker, shown over the app window.
+    public Task<string?> PickFolder(string? initial)
+    {
+        var done = new TaskCompletionSource<string?>();
+        BeginInvoke(() =>
+        {
+            using var dlg = new FolderBrowserDialog
+            {
+                Description = "Chọn thư mục lưu bản dịch",
+                UseDescriptionForTitle = true,
+                InitialDirectory = Directory.Exists(initial) ? initial! : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            };
+            done.SetResult(dlg.ShowDialog(this) == DialogResult.OK ? dlg.SelectedPath : null);
+        });
+        return done.Task;
+    }
+
     // Closes the window shortly after the update has started, once the page has its reply.
     public void CloseForUpdate() => BeginInvoke(async () => { await Task.Delay(700); Close(); });
 

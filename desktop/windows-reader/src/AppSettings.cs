@@ -58,6 +58,7 @@ internal sealed class AppSettings
     public bool AutoUpdate { get; set; } = true;
     public string Theme { get; set; } = "system";
     public JsonObject? Reader { get; set; }
+    public JsonObject? Translate { get; set; }
     public List<ReceivedItem> Received { get; set; } = new();
 
     private static readonly object Gate = new();

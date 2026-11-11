@@ -235,6 +235,68 @@
   ul.plan b { display: block; }
   ul.plan span { color: var(--ink-2); font-size: .93rem; }
 
+
+  /* Windows app */
+  #windows { background: #1b1a18; color: #ece8df; border-block: 1px solid #2c2a26; --w-line: #34322d; --w-muted: #a29d92; --w-card: #24231f; }
+  #windows .sub { color: #c4bfb4; }
+  #windows a { color: #ece8df; }
+  .win-wrap { display: grid; grid-template-columns: 1fr 1.08fr; gap: 44px; align-items: center; }
+  @media (max-width: 900px) { .win-wrap { grid-template-columns: 1fr; gap: 32px; } }
+  .win-wrap > * { min-width: 0; }
+  #windows .pill { color: #8fcf9f; border-color: rgba(143, 207, 159, .45); }
+  .win-feats { list-style: none; padding: 0; margin: 0 0 26px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px 22px; }
+  @media (max-width: 560px) { .win-feats { grid-template-columns: 1fr; } }
+  .win-feats li { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; }
+  .win-feats .ic { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: var(--w-card); border: 1px solid var(--w-line); }
+  .win-feats svg { width: 18px; height: 18px; stroke: #ece8df; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .win-feats b { display: block; font-size: .97rem; margin-bottom: 2px; }
+  .win-feats span { color: var(--w-muted); font-size: .9rem; line-height: 1.5; }
+  .win-dl { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; }
+  #windows .btn.primary { background: #ece8df; color: #1b1a18; border-color: #ece8df; font-size: 1rem; padding: 13px 22px; }
+  #windows .btn.primary svg { width: 20px; height: 20px; }
+  .win-meta { color: var(--w-muted); font-size: .88rem; line-height: 1.5; }
+  .win-meta b { color: #ece8df; font-weight: 600; }
+  .win-new { margin: 18px 0 0; padding: 12px 14px; border: 1px solid var(--w-line); border-radius: 10px; background: var(--w-card); color: #c4bfb4; font-size: .9rem; white-space: pre-line; }
+  .win-new:empty { display: none; }
+  .win-new strong { display: block; color: #ece8df; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px; }
+  .win-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 40px; }
+  @media (max-width: 760px) { .win-steps { grid-template-columns: 1fr; } }
+  .win-steps div { border: 1px solid var(--w-line); border-radius: 12px; padding: 14px 16px; background: var(--w-card); }
+  .win-steps i { font: 700 1.5rem/1 var(--serif); font-style: normal; color: var(--w-muted); }
+  .win-steps b { display: block; margin: 6px 0 4px; }
+  .win-steps span { color: var(--w-muted); font-size: .9rem; }
+
+  /* App window mock-up */
+  .app-shot { border-radius: 12px; overflow: hidden; background: #f6f7fb; box-shadow: 0 40px 80px -30px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.08); aspect-ratio: 16 / 10.4; display: flex; flex-direction: column; }
+  .app-shot .tb { height: 26px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; background: #fff; border-bottom: 1px solid #e6e7ee; font: 600 .66rem var(--sans); color: #6b6f80; }
+  .app-shot .tb em { font-style: normal; letter-spacing: .3em; color: #9aa0b4; }
+  .app-shot .body { flex: 1; display: flex; min-height: 0; }
+  .app-shot .side { width: 21%; background: #fff; border-right: 1px solid #eceef4; padding: 10px 8px; display: flex; flex-direction: column; gap: 7px; }
+  .app-shot .logo { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .app-shot .logo i { width: 16px; height: 16px; border-radius: 5px; background: linear-gradient(135deg, #6d6df0, #4b4bc8); }
+  .app-shot .logo b { font: 700 .6rem var(--sans); color: #222; }
+  .app-shot .nav { height: 15px; border-radius: 5px; display: flex; align-items: center; gap: 5px; padding: 0 5px; }
+  .app-shot .nav::before { content: ""; width: 7px; height: 7px; border-radius: 2px; border: 1.5px solid #9aa0b4; flex: none; }
+  .app-shot .nav::after { content: ""; height: 4px; border-radius: 2px; background: #cfd3df; flex: 1; max-width: 60%; }
+  .app-shot .nav.on { background: #ececfd; }
+  .app-shot .nav.on::before { border-color: #5b5bd6; }
+  .app-shot .nav.on::after { background: #a9a9ef; }
+  .app-shot .desk { flex: 1; background: #e8dcc4; display: grid; place-items: center; padding: 6% 5%; position: relative; }
+  .app-shot .book { width: 100%; height: 100%; display: grid; grid-template-columns: 1fr 1fr; background: #f7efdf; border-radius: 3px; box-shadow: 0 10px 22px -10px rgba(70,50,20,.55); position: relative; }
+  .app-shot .book::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 7%; transform: translateX(-50%); background: linear-gradient(90deg, transparent, rgba(80,60,30,.22) 45%, rgba(80,60,30,.32) 50%, rgba(80,60,30,.22) 55%, transparent); }
+  .app-shot .pg { padding: 13% 11%; display: flex; flex-direction: column; gap: 5.5%; position: relative; }
+  .app-shot .pg i { display: block; height: 3px; border-radius: 2px; background: #b8aa92; }
+  .app-shot .pg i.h { height: 6px; width: 55%; background: #6f604a; margin-bottom: 4%; }
+  .app-shot .pg i.s { width: 72%; } .app-shot .pg i.t { width: 86%; }
+  .app-shot .pg i.vi { background: #c9b9a0; transform: skewX(-14deg); }
+  .app-shot .curl { position: absolute; right: 0; bottom: 0; width: 26%; height: 30%; overflow: hidden; border-bottom-right-radius: 3px; }
+  .app-shot .curl::before { content: ""; position: absolute; inset: 0; background: linear-gradient(315deg, #e8dcc4 0 50%, transparent 50%); }
+  .app-shot .curl::after { content: ""; position: absolute; inset: 0; background: linear-gradient(135deg, transparent 0 50%, #fffaf0 50%, #e9dcc3 78%, #d8c8ab); clip-path: polygon(0 100%, 100% 0, 100% 100%); transform: scale(-1, -1); filter: drop-shadow(-3px -3px 4px rgba(60,40,10,.35)); }
+  .app-shot .look { position: absolute; left: 13%; top: 46%; background: #fff; border-radius: 6px; padding: 6px 8px; box-shadow: 0 8px 18px -6px rgba(0,0,0,.35); font: .52rem/1.35 var(--sans); color: #333; width: 30%; }
+  .app-shot .look b { display: block; font-size: .62rem; }
+  .app-shot .look span { color: #888; }
+  .app-shot-cap { text-align: center; color: var(--w-muted); font-size: .82rem; margin: 14px 0 0; }
+
   /* FAQ */
   details { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
   summary { cursor: pointer; font-weight: 600; }
@@ -257,6 +319,7 @@
       <a class="opt" href="#start">Hướng dẫn</a>
       <a class="opt" href="#vocab">Từ vựng</a>
       <a class="opt" href="#features">Tính năng</a>
+      <a class="opt" href="#windows">Windows</a>
       <a class="opt" href="#releases">Phiên bản</a>
       <a class="opt" href="#extension">Chrome</a>
       <a class="opt" href="#faq">Hỏi đáp</a>
@@ -276,6 +339,7 @@
         <a class="btn primary" href="#devices">Chọn máy và tải firmware</a>
         <a class="btn ghost" href="#start">Xem hướng dẫn cho người mới</a>
       </div>
+      <p class="meta" style="margin:16px 0 0">Đọc trên máy tính? Có <a href="#windows">Zenix CrossPoint Reader cho Windows</a>, dùng chung thư viện và máy đọc với bạn.</p>
       <div class="stats">
         <div><b>6</b><span>dòng máy</span></div>
         <div><b>52 000+</b><span>thẻ từ vựng Anh · Trung</span></div>
@@ -435,6 +499,63 @@
           <h3>Sao lưu và khôi phục</h3>
           <p>Một file chứa cài đặt, sách gần đây, yêu thích, bộ sưu tập và thống kê. Mật khẩu Wi-Fi không được đưa vào.</p>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="windows">
+    <div class="wrap">
+      <div class="win-wrap">
+        <div>
+          <span class="pill">Mới · Windows 10 và 11</span>
+          <h2 style="margin-top:12px">Zenix CrossPoint Reader cho Windows</h2>
+          <p class="sub" style="margin-bottom:28px">Đọc EPUB trên máy tính như cầm một cuốn sách thật: hai trang mở ra, kéo góc trang bằng chuột để lật. Dùng chung tài khoản thư viện, máy đọc X4 và bộ từ vựng với CrossPoint Zenix.</p>
+          <ul class="win-feats">
+            <li><span class="ic"><svg viewBox="0 0 24 24"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg></span>
+              <div><b>Lật trang như sách giấy</b><span>Hai trang đối diện, trang cong lên khi lật, mặt sau có chữ. Sách tự co giãn theo cửa sổ.</span></div></li>
+            <li><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16.2 7.8-2.1 6.3-6.3 2.1 2.1-6.3z"/></svg></span>
+              <div><b>Thư viện online</b><span>Đăng nhập tài khoản, duyệt và tải sách từ thư viện CrossPoint bằng một cú bấm.</span></div></li>
+            <li><span class="ic"><svg viewBox="0 0 24 24"><path d="M5 12.6a10 10 0 0 1 14 0"/><path d="M8.5 16.1a5 5 0 0 1 7 0"/><path d="M2 8.8a15 15 0 0 1 20 0"/><path d="M12 20h.01"/></svg></span>
+              <div><b>Nhận sách qua Wi-Fi</b><span>Máy tính thành một máy đọc trong tài khoản: gửi sách từ web là sách tự về thư viện.</span></div></li>
+            <li><span class="ic"><svg viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg></span>
+              <div><b>Gửi sang máy đọc X4</b><span>Đang đọc trên máy tính, bấm Gửi tới máy đọc để mang cuốn sách theo người.</span></div></li>
+            <li><span class="ic"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg></span>
+              <div><b>Tra từ, lưu từ</b><span>Bấm đúp một từ tiếng Anh để xem nghĩa, nghe phát âm, lưu cùng câu trong sách để ôn trên X4.</span></div></li>
+            <li><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="m8 13 4-7 4 7"/><path d="M9.1 11h5.7"/></svg></span>
+              <div><b>Dịch sách Anh → Việt</b><span>Tạo bản tiếng Việt hoặc bản song ngữ (mỗi đoạn kèm bản dịch) ngay trong thư viện.</span></div></li>
+          </ul>
+          <div class="win-dl">
+            <a class="btn primary" id="winDownload" href="/windows/latest.json">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.5 4.4v7.1H3zm8.4-1.2L21 3v8.5h-9.6zM3 12.5h7.5v7.1L3 18.5zm8.4 0H21V21l-9.6-1.3z"/></svg>
+              <span id="winLabel">Tải cho Windows</span></a>
+            <div class="win-meta" id="winMeta">Miễn phí · Windows 10/11, 64-bit<br>Tự cập nhật khi có bản mới</div>
+          </div>
+          <div class="win-new" id="winNotes"></div>
+        </div>
+        <div>
+          <div class="app-shot" aria-hidden="true">
+            <div class="tb"><span>Zenix CrossPoint Reader</span><em>— ▢ ✕</em></div>
+            <div class="body">
+              <div class="side">
+                <div class="logo"><i></i><b>CrossPoint</b></div>
+                <div class="nav on"></div><div class="nav"></div><div class="nav"></div><div class="nav"></div><div class="nav"></div>
+              </div>
+              <div class="desk">
+                <div class="book">
+                  <div class="pg"><i class="h"></i><i></i><i class="t"></i><i class="vi"></i><i class="vi s"></i><i></i><i class="t"></i><i class="vi"></i><i class="vi t"></i><i class="s"></i></div>
+                  <div class="pg"><i></i><i class="vi t"></i><i class="vi"></i><i></i><i class="t"></i><i class="s"></i><i class="vi"></i><i class="vi s"></i><i></i><i class="t"></i><span class="curl"></span></div>
+                  <div class="look"><b>achieve</b><span>/əˈtʃiːv/</span><br>đạt được, giành được</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="app-shot-cap">Bản song ngữ trong chế độ hai trang, khung tra từ khi bấm đúp</p>
+        </div>
+      </div>
+      <div class="win-steps">
+        <div><i>1</i><b>Tải và mở file .msi</b><span>Nếu Windows hiện “Windows đã bảo vệ PC của bạn”, bấm <u>Thông tin bổ sung</u> rồi <u>Vẫn chạy</u>.</span></div>
+        <div><i>2</i><b>Đăng nhập thư viện</b><span>Ở mục Khám phá, dùng tên đăng nhập và mật khẩu như trên web. Chưa có? <a href="/library/index.php?p=register">Đăng ký miễn phí</a>.</span></div>
+        <div><i>3</i><b>Thêm sách và đọc</b><span>Kéo thả file EPUB, TXT vào cửa sổ, tải từ thư viện online, hoặc nhận sách gửi qua Wi-Fi.</span></div>
       </div>
     </div>
   </section>
@@ -608,6 +729,8 @@ curious  /ˈkjʊəriəs/   tò mò          Children are curious.
         <p>Danh sách từ, cấp độ và pinyin từ complete-hsk-vocabulary; nghĩa tiếng Việt từ từ điển CVDICT (dịch tự động từ CC-CEDICT, đã được rà soát nhưng có thể còn chỗ chưa chuẩn); âm Hán Việt từ hanviet-pinyin-wordlist. Thấy nghĩa sai, bạn có thể tải bộ từ về, sửa trong Excel và tải lên lại: tiến độ học không mất.</p></details>
       <details><summary>Học tiếng Anh và tiếng Trung cùng lúc được không?</summary>
         <p>Được. Mỗi ngôn ngữ nhớ bộ từ và tiến độ riêng; đổi ở <b>Cài đặt → Từ vựng → Ngôn ngữ học</b>. Chuỗi ngày học và thống kê tuần tính chung cả hai.</p></details>
+      <details><summary>Windows báo "Windows đã bảo vệ PC của bạn" khi cài app?</summary>
+        <p>Bộ cài Zenix CrossPoint Reader chưa có chữ ký số nên SmartScreen cảnh báo lần đầu. Bấm <b>Thông tin bổ sung → Vẫn chạy</b>. Các bản sau app tự tải, kiểm tra SHA-256 rồi tự cài, bạn không cần tải lại thủ công.</p></details>
       <details><summary>Khi nào có tiện ích Chrome?</summary>
         <p>Tiện ích đang được chuẩn bị và sẽ thông báo ở mục <a href="#extension">Tiện ích Chrome</a> khi phát hành. Nó dùng tài khoản thư viện và khoá liên kết máy như hiện nay, nên bạn có thể tạo tài khoản và liên kết máy ngay từ bây giờ.</p></details>
       <details><summary>Lần đầu mở Thư viện sau khi cập nhật bị chậm?</summary>
@@ -634,6 +757,20 @@ curious  /ˈkjʊəriəs/   tò mò          Children are curious.
       try { localStorage.setItem('theme', root.dataset.theme); } catch (e) {}
     });
   })();
+
+  // Windows app: the download button follows the update feed the app itself uses.
+  fetch('/windows/latest.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(m => {
+    if (!m || !m.url) return;
+    const a = document.getElementById('winDownload');
+    a.href = '/windows/' + encodeURIComponent(m.url);
+    a.setAttribute('download', m.url);
+    document.getElementById('winLabel').textContent = 'Tải cho Windows · ' + m.version;
+    const d = m.date ? new Date(m.date + 'T00:00:00') : null;
+    document.getElementById('winMeta').innerHTML = '<b>Phiên bản ' + esc(m.version) + '</b> · ' + size(m.size) +
+      (d && !isNaN(d) ? ' · ' + d.toLocaleDateString('vi-VN', { day: 'numeric', month: 'long', year: 'numeric' }) : '') +
+      '<br>Miễn phí · Windows 10/11, 64-bit · tự cập nhật';
+    if (m.notes) document.getElementById('winNotes').innerHTML = '<strong>Có gì mới</strong>' + esc(m.notes);
+  }).catch(() => {});
 
   function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function size(n) { return n >= 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.round(n / 1024) + ' KB'; }
